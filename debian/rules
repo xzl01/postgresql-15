@@ -1,4 +1,5 @@
 #!/usr/bin/make -f
 
-%:
-	dh $@
+MAJOR_VER := 15
+
+include /usr/share/postgresql-common/server/postgresql.mk
