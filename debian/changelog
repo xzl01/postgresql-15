@@ -1,3 +1,9 @@
+postgresql-15 (15.3-1deepin1) unstable; urgency=medium
+
+  * Apply patches from postgresql-14
+
+ -- Chang Yang <yangchang@deepin.org>  Wed 06 Sep 2023 2023 10:21:00 +0800
+
 postgresql-15 (15.3-1) experimental; urgency=medium
 
   * New upstream version.

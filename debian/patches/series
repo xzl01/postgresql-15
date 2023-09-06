@@ -10,3 +10,4 @@ extension_destdir
 autoconf2.69
 focal-arm64-outline-atomics
 jit-s390x
+add-sunway-support.patch
