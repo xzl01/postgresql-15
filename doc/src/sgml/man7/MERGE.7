@@ -2,12 +2,12 @@
 .\"     Title: MERGE
 .\"    Author: The PostgreSQL Global Development Group
 .\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
-.\"      Date: 2023
-.\"    Manual: PostgreSQL 15.3 Documentation
-.\"    Source: PostgreSQL 15.3
+.\"      Date: 2024
+.\"    Manual: PostgreSQL 15.7 Documentation
+.\"    Source: PostgreSQL 15.7
 .\"  Language: English
 .\"
-.TH "MERGE" "7" "2023" "PostgreSQL 15.3" "PostgreSQL 15.3 Documentation"
+.TH "MERGE" "7" "2024" "PostgreSQL 15.7" "PostgreSQL 15.7 Documentation"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -55,7 +55,9 @@ INSERT [( \fIcolumn_name\fR [, \&.\&.\&.] )]
 and \fImerge_update\fR is:
 
 UPDATE SET { \fIcolumn_name\fR = { \fIexpression\fR | DEFAULT } |
-             ( \fIcolumn_name\fR [, \&.\&.\&.] ) = ( { \fIexpression\fR | DEFAULT } [, \&.\&.\&.] ) } [, \&.\&.\&.]
+             ( \fIcolumn_name\fR [, \&.\&.\&.] ) = [ ROW ] ( { \fIexpression\fR | DEFAULT } [, \&.\&.\&.] ) |
+             ( \fIcolumn_name\fR [, \&.\&.\&.] ) = ( \fIsub\-SELECT\fR )
+           } [, \&.\&.\&.]
 
 and \fImerge_delete\fR is:
 
@@ -64,7 +66,7 @@ DELETE
 .SH "DESCRIPTION"
 .PP
 \fBMERGE\fR
-performs actions that modify rows in the
+performs actions that modify rows in the target table identified as
 \fItarget_table_name\fR, using the
 \fIdata_source\fR\&.
 \fBMERGE\fR
@@ -81,9 +83,7 @@ First, the
 \fBMERGE\fR
 command performs a join from
 \fIdata_source\fR
-to
-\fItarget_table_name\fR
-producing zero or more candidate change rows\&. For each candidate change row, the status of
+to the target table producing zero or more candidate change rows\&. For each candidate change row, the status of
 MATCHED
 or
 NOT MATCHED
@@ -100,8 +100,7 @@ actions have the same effect as regular
 \fBDELETE\fR
 commands of the same names\&. The syntax of those commands is different, notably that there is no
 WHERE
-clause and no table name is specified\&. All actions refer to the
-\fItarget_table_name\fR, though modifications to other tables may be made using triggers\&.
+clause and no table name is specified\&. All actions refer to the target table, though modifications to other tables may be made using triggers\&.
 .PP
 When
 DO NOTHING
@@ -113,32 +112,47 @@ There is no separate
 MERGE
 privilege\&. If you specify an update action, you must have the
 UPDATE
-privilege on the column(s) of the
-\fItarget_table_name\fR
-that are referred to in the
+privilege on the column(s) of the target table that are referred to in the
 SET
 clause\&. If you specify an insert action, you must have the
 INSERT
-privilege on the
-\fItarget_table_name\fR\&. If you specify an delete action, you must have the
+privilege on the target table\&. If you specify a delete action, you must have the
 DELETE
-privilege on the
-\fItarget_table_name\fR\&. Privileges are tested once at statement start and are checked whether or not particular
-WHEN
-clauses are executed\&. You will require the
+privilege on the target table\&. If you specify a
+DO NOTHING
+action, you must have the
 SELECT
-privilege on the
+privilege on at least one column of the target table\&. You will also need
+SELECT
+privilege on any column(s) of the
 \fIdata_source\fR
-and any column(s) of the
-\fItarget_table_name\fR
-referred to in a
-condition\&.
+and of the target table referred to in any
+condition
+(including
+join_condition) or
+expression\&. Privileges are tested once at statement start and are checked whether or not particular
+WHEN
+clauses are executed\&.
 .PP
 \fBMERGE\fR
-is not supported if the
-\fItarget_table_name\fR
-is a materialized view, foreign table, or if it has any rules defined on it\&.
+is not supported if the target table is a materialized view, foreign table, or if it has any rules defined on it\&.
 .SH "PARAMETERS"
+.PP
+\fIwith_query\fR
+.RS 4
+The
+WITH
+clause allows you to specify one or more subqueries that can be referenced by name in the
+\fBMERGE\fR
+query\&. See
+Section\ \&7.8
+and
+\fBSELECT\fR(7)
+for details\&. Note that
+WITH RECURSIVE
+is not supported by
+\fBMERGE\fR\&.
+.RE
 .PP
 \fItarget_table_name\fR
 .RS 4
@@ -182,8 +196,7 @@ can be specified after the table name to explicitly indicate that descendant tab
 A query (\fBSELECT\fR
 statement or
 \fBVALUES\fR
-statement) that supplies the rows to be merged into the
-\fItarget_table_name\fR\&. Refer to the
+statement) that supplies the rows to be merged into the target table\&. Refer to the
 \fBSELECT\fR(7)
 statement or
 \fBVALUES\fR(7)
@@ -204,8 +217,7 @@ boolean
 WHERE
 clause) that specifies which rows in the
 \fIdata_source\fR
-match rows in the
-\fItarget_table_name\fR\&.
+match rows in the target table\&.
 .if n \{\
 .sp
 .\}
@@ -218,16 +230,12 @@ match rows in the
 \fBWarning\fR
 .ps -1
 .br
-Only columns from
-\fItarget_table_name\fR
-that attempt to match
+Only columns from the target table that attempt to match
 \fIdata_source\fR
 rows should appear in
 \fIjoin_condition\fR\&.
 \fIjoin_condition\fR
-subexpressions that only reference
-\fItarget_table_name\fR
-columns can affect which action is taken, often in surprising ways\&.
+subexpressions that only reference the target table\*(Aqs columns can affect which action is taken, often in surprising ways\&.
 .sp .5v
 .RE
 .RE
@@ -242,8 +250,7 @@ If the
 WHEN
 clause specifies
 WHEN MATCHED
-and the candidate change row matches a row in the
-\fItarget_table_name\fR, the
+and the candidate change row matches a row in the target table, the
 WHEN
 clause is executed if the
 \fIcondition\fR
@@ -254,8 +261,7 @@ Conversely, if the
 WHEN
 clause specifies
 WHEN NOT MATCHED
-and the candidate change row does not match a row in the
-\fItarget_table_name\fR, the
+and the candidate change row does not match a row in the target table, the
 WHEN
 clause is executed if the
 \fIcondition\fR
@@ -286,11 +292,7 @@ action that inserts one row into the target table\&. The target column names can
 .sp
 Each column not present in the explicit or implicit column list will be filled with a default value, either its declared default value or null if there is none\&.
 .sp
-If
-\fItarget_table_name\fR
-is a partitioned table, each row is routed to the appropriate partition and inserted into it\&. If
-\fItarget_table_name\fR
-is a partition, an error will occur if any input row violates the partition constraint\&.
+If the target table is a partitioned table, each row is routed to the appropriate partition and inserted into it\&. If the target table is a partition, an error will occur if any input row violates the partition constraint\&.
 .sp
 Column names may not be specified more than once\&.
 \fBINSERT\fR
@@ -307,8 +309,7 @@ clause can only refer to columns from the source relation, since by definition t
 .RS 4
 The specification of an
 UPDATE
-action that updates the current row of the
-\fItarget_table_name\fR\&. Column names may not be specified more than once\&.
+action that updates the current row of the target table\&. Column names may not be specified more than once\&.
 .sp
 Neither a table name nor a
 WHERE
@@ -319,16 +320,14 @@ clause are allowed\&.
 .RS 4
 Specifies a
 DELETE
-action that deletes the current row of the
-\fItarget_table_name\fR\&. Do not include the table name or any other clauses, as you would normally do with a
+action that deletes the current row of the target table\&. Do not include the table name or any other clauses, as you would normally do with a
 \fBDELETE\fR(7)
 command\&.
 .RE
 .PP
 \fIcolumn_name\fR
 .RS 4
-The name of a column in the
-\fItarget_table_name\fR\&. The column name can be qualified with a subfield name or array subscript, if needed\&. (Inserting into only some fields of a composite column leaves the other fields null\&.) Do not include the table\*(Aqs name in the specification of a target column\&.
+The name of a column in the target table\&. The column name can be qualified with a subfield name or array subscript, if needed\&. (Inserting into only some fields of a composite column leaves the other fields null\&.) Do not include the table\*(Aqs name in the specification of a target column\&.
 .RE
 .PP
 OVERRIDING SYSTEM VALUE
@@ -357,11 +356,12 @@ clause is not permitted in this form\&.)
 An expression to assign to the column\&. If used in a
 WHEN MATCHED
 clause, the expression can use values from the original row in the target table, and values from the
-data_source
+\fIdata_source\fR
 row\&. If used in a
 WHEN NOT MATCHED
 clause, the expression can use values from the
-data_source\&.
+\fIdata_source\fR
+row\&.
 .RE
 .PP
 DEFAULT
@@ -371,17 +371,13 @@ NULL
 if no specific default expression has been assigned to it)\&.
 .RE
 .PP
-\fIwith_query\fR
+\fIsub\-SELECT\fR
 .RS 4
-The
-WITH
-clause allows you to specify one or more subqueries that can be referenced by name in the
-\fBMERGE\fR
-query\&. See
-Section\ \&7.8
-and
-\fBSELECT\fR(7)
-for details\&.
+A
+SELECT
+sub\-query that produces as many output columns as are listed in the parenthesized column list preceding it\&. The sub\-query must yield no more than one row when executed\&. If it yields one row, its column values are assigned to the target columns; if it yields no rows, NULL values are assigned to the target columns\&. The sub\-query can refer to values from the original row in the target table, and values from the
+\fIdata_source\fR
+row\&.
 .RE
 .SH "OUTPUTS"
 .PP
@@ -667,7 +663,9 @@ This command conforms to the
 SQL
 standard\&.
 .PP
-The WITH clause and
+The
+WITH
+clause and
 DO NOTHING
 action are extensions to the
 SQL

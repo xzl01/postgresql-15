@@ -3071,6 +3071,27 @@ chooseScript(TState *thread)
 }
 
 /*
+ * Allocate space for CState->prepared: we need one boolean for each command
+ * of each script.
+ */
+static void
+allocCStatePrepared(CState *st)
+{
+	Assert(st->prepared == NULL);
+
+	st->prepared = pg_malloc(sizeof(bool *) * num_scripts);
+	for (int i = 0; i < num_scripts; i++)
+	{
+		ParsedScript *script = &sql_script[i];
+		int			numcmds;
+
+		for (numcmds = 0; script->commands[numcmds] != NULL; numcmds++)
+			;
+		st->prepared[i] = pg_malloc0(sizeof(bool) * numcmds);
+	}
+}
+
+/*
  * Prepare the SQL command from st->use_file at command_num.
  */
 static void
@@ -3082,23 +3103,8 @@ prepareCommand(CState *st, int command_num)
 	if (command->type != SQL_COMMAND)
 		return;
 
-	/*
-	 * If not already done, allocate space for 'prepared' flags: one boolean
-	 * for each command of each script.
-	 */
 	if (!st->prepared)
-	{
-		st->prepared = pg_malloc(sizeof(bool *) * num_scripts);
-		for (int i = 0; i < num_scripts; i++)
-		{
-			ParsedScript *script = &sql_script[i];
-			int			numcmds;
-
-			for (numcmds = 0; script->commands[numcmds] != NULL; numcmds++)
-				;
-			st->prepared[i] = pg_malloc0(sizeof(bool) * numcmds);
-		}
-	}
+		allocCStatePrepared(st);
 
 	if (!st->prepared[st->use_file][command_num])
 	{
@@ -3130,13 +3136,15 @@ prepareCommandsInPipeline(CState *st)
 	Assert(commands[st->command]->type == META_COMMAND &&
 		   commands[st->command]->meta == META_STARTPIPELINE);
 
+	if (!st->prepared)
+		allocCStatePrepared(st);
+
 	/*
 	 * We set the 'prepared' flag on the \startpipeline itself to flag that we
 	 * don't need to do this next time without calling prepareCommand(), even
 	 * though we don't actually prepare this command.
 	 */
-	if (st->prepared &&
-		st->prepared[st->use_file][st->command])
+	if (st->prepared[st->use_file][st->command])
 		return;
 
 	for (j = st->command + 1; commands[j] != NULL; j++)
@@ -3770,10 +3778,21 @@ advanceConnectionState(TState *thread, CState *st, StatsData *agg)
 			case CSTATE_START_COMMAND:
 				command = sql_script[st->use_file].commands[st->command];
 
-				/* Transition to script end processing if done */
+				/*
+				 * Transition to script end processing if done, but close up
+				 * shop if a pipeline is open at this point.
+				 */
 				if (command == NULL)
 				{
-					st->state = CSTATE_END_TX;
+					if (PQpipelineStatus(st->con) == PQ_PIPELINE_OFF)
+						st->state = CSTATE_END_TX;
+					else
+					{
+						pg_log_error("client %d aborted: end of script reached with pipeline open",
+									 st->id);
+						st->state = CSTATE_ABORTED;
+					}
+
 					break;
 				}
 
@@ -7807,14 +7826,23 @@ clear_socket_set(socket_set *sa)
 static void
 add_socket_to_set(socket_set *sa, int fd, int idx)
 {
+	/* See connect_slot() for background on this code. */
+#ifdef WIN32
+	if (sa->fds.fd_count + 1 >= FD_SETSIZE)
+	{
+		pg_log_error("too many concurrent database clients for this platform: %d",
+					 sa->fds.fd_count + 1);
+		exit(1);
+	}
+#else
 	if (fd < 0 || fd >= FD_SETSIZE)
 	{
-		/*
-		 * Doing a hard exit here is a bit grotty, but it doesn't seem worth
-		 * complicating the API to make it less grotty.
-		 */
-		pg_fatal("too many client connections for select()");
+		pg_log_error("socket file descriptor out of range for select(): %d",
+					 fd);
+		pg_log_error_hint("Try fewer concurrent database clients.");
+		exit(1);
 	}
+#endif
 	FD_SET(fd, &sa->fds);
 	if (fd > sa->maxfd)
 		sa->maxfd = fd;

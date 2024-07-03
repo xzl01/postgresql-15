@@ -461,34 +461,11 @@ CreateDirAndVersionFile(char *dbpath, Oid dbid, Oid tsid, bool isRedo)
 	char		buf[16];
 
 	/*
-	 * Prepare version data before starting a critical section.
-	 *
-	 * Note that we don't have to copy this from the source database; there's
-	 * only one legal value.
+	 * Note that we don't have to copy version data from the source database;
+	 * there's only one legal value.
 	 */
 	sprintf(buf, "%s\n", PG_MAJORVERSION);
 	nbytes = strlen(PG_MAJORVERSION) + 1;
-
-	/* If we are not in WAL replay then write the WAL. */
-	if (!isRedo)
-	{
-		xl_dbase_create_wal_log_rec xlrec;
-		XLogRecPtr	lsn;
-
-		START_CRIT_SECTION();
-
-		xlrec.db_id = dbid;
-		xlrec.tablespace_id = tsid;
-
-		XLogBeginInsert();
-		XLogRegisterData((char *) (&xlrec),
-						 sizeof(xl_dbase_create_wal_log_rec));
-
-		lsn = XLogInsert(RM_DBASE_ID, XLOG_DBASE_CREATE_WAL_LOG);
-
-		/* As always, WAL must hit the disk before the data update does. */
-		XLogFlush(lsn);
-	}
 
 	/* Create database directory. */
 	if (MakePGDirectory(dbpath) < 0)
@@ -530,12 +507,35 @@ CreateDirAndVersionFile(char *dbpath, Oid dbid, Oid tsid, bool isRedo)
 	}
 	pgstat_report_wait_end();
 
+	pgstat_report_wait_start(WAIT_EVENT_VERSION_FILE_SYNC);
+	if (pg_fsync(fd) != 0)
+		ereport(data_sync_elevel(ERROR),
+				(errcode_for_file_access(),
+				 errmsg("could not fsync file \"%s\": %m", versionfile)));
+	fsync_fname(dbpath, true);
+	pgstat_report_wait_end();
+
 	/* Close the version file. */
 	CloseTransientFile(fd);
 
-	/* Critical section done. */
+	/* If we are not in WAL replay then write the WAL. */
 	if (!isRedo)
+	{
+		xl_dbase_create_wal_log_rec xlrec;
+
+		START_CRIT_SECTION();
+
+		xlrec.db_id = dbid;
+		xlrec.tablespace_id = tsid;
+
+		XLogBeginInsert();
+		XLogRegisterData((char *) (&xlrec),
+						 sizeof(xl_dbase_create_wal_log_rec));
+
+		(void) XLogInsert(RM_DBASE_ID, XLOG_DBASE_CREATE_WAL_LOG);
+
 		END_CRIT_SECTION();
+	}
 }
 
 /*
@@ -715,7 +715,7 @@ createdb(ParseState *pstate, const CreatedbStmt *stmt)
 	int			encoding = -1;
 	bool		dbistemplate = false;
 	bool		dballowconnections = true;
-	int			dbconnlimit = -1;
+	int			dbconnlimit = DATCONNLIMIT_UNLIMITED;
 	char	   *dbcollversion = NULL;
 	int			notherbackends;
 	int			npreparedxacts;
@@ -914,7 +914,7 @@ createdb(ParseState *pstate, const CreatedbStmt *stmt)
 	if (dconnlimit && dconnlimit->arg)
 	{
 		dbconnlimit = defGetInt32(dconnlimit);
-		if (dbconnlimit < -1)
+		if (dbconnlimit < DATCONNLIMIT_UNLIMITED)
 			ereport(ERROR,
 					(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
 					 errmsg("invalid connection limit: %d", dbconnlimit)));
@@ -966,6 +966,16 @@ createdb(ParseState *pstate, const CreatedbStmt *stmt)
 						dbtemplate)));
 
 	/*
+	 * If the source database was in the process of being dropped, we can't
+	 * use it as a template.
+	 */
+	if (database_is_invalid_oid(src_dboid))
+		ereport(ERROR,
+				errcode(ERRCODE_OBJECT_NOT_IN_PREREQUISITE_STATE),
+				errmsg("cannot use invalid database \"%s\" as template", dbtemplate),
+				errhint("Use DROP DATABASE to drop invalid databases."));
+
+	/*
 	 * Permission check: to copy a DB that's not marked datistemplate, you
 	 * must be superuser or the owner thereof.
 	 */
@@ -984,15 +994,15 @@ createdb(ParseState *pstate, const CreatedbStmt *stmt)
 		char	   *strategy;
 
 		strategy = defGetString(dstrategy);
-		if (strcmp(strategy, "wal_log") == 0)
+		if (pg_strcasecmp(strategy, "wal_log") == 0)
 			dbstrategy = CREATEDB_WAL_LOG;
-		else if (strcmp(strategy, "file_copy") == 0)
+		else if (pg_strcasecmp(strategy, "file_copy") == 0)
 			dbstrategy = CREATEDB_FILE_COPY;
 		else
 			ereport(ERROR,
 					(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
 					 errmsg("invalid create database strategy \"%s\"", strategy),
-					 errhint("Valid strategies are \"wal_log\", and \"file_copy\".")));
+					 errhint("Valid strategies are \"wal_log\" and \"file_copy\".")));
 	}
 
 	/* If encoding or locales are defaulted, use source's setting */
@@ -1513,6 +1523,7 @@ dropdb(const char *dbname, bool missing_ok, bool force)
 	bool		db_istemplate;
 	Relation	pgdbrel;
 	HeapTuple	tup;
+	Form_pg_database datform;
 	int			notherbackends;
 	int			npreparedxacts;
 	int			nslots,
@@ -1629,17 +1640,6 @@ dropdb(const char *dbname, bool missing_ok, bool force)
 				 errdetail_busy_db(notherbackends, npreparedxacts)));
 
 	/*
-	 * Remove the database's tuple from pg_database.
-	 */
-	tup = SearchSysCache1(DATABASEOID, ObjectIdGetDatum(db_id));
-	if (!HeapTupleIsValid(tup))
-		elog(ERROR, "cache lookup failed for database %u", db_id);
-
-	CatalogTupleDelete(pgdbrel, &tup->t_self);
-
-	ReleaseSysCache(tup);
-
-	/*
 	 * Delete any comments or security labels associated with the database.
 	 */
 	DeleteSharedComments(db_id, DatabaseRelationId);
@@ -1656,6 +1656,37 @@ dropdb(const char *dbname, bool missing_ok, bool force)
 	dropDatabaseDependencies(db_id);
 
 	/*
+	 * Tell the cumulative stats system to forget it immediately, too.
+	 */
+	pgstat_drop_database(db_id);
+
+	tup = SearchSysCacheCopy1(DATABASEOID, ObjectIdGetDatum(db_id));
+	if (!HeapTupleIsValid(tup))
+		elog(ERROR, "cache lookup failed for database %u", db_id);
+	datform = (Form_pg_database) GETSTRUCT(tup);
+
+	/*
+	 * Except for the deletion of the catalog row, subsequent actions are not
+	 * transactional (consider DropDatabaseBuffers() discarding modified
+	 * buffers). But we might crash or get interrupted below. To prevent
+	 * accesses to a database with invalid contents, mark the database as
+	 * invalid using an in-place update.
+	 *
+	 * We need to flush the WAL before continuing, to guarantee the
+	 * modification is durable before performing irreversible filesystem
+	 * operations.
+	 */
+	datform->datconnlimit = DATCONNLIMIT_INVALID_DB;
+	heap_inplace_update(pgdbrel, tup);
+	XLogFlush(XactLastRecEnd);
+
+	/*
+	 * Also delete the tuple - transactionally. If this transaction commits,
+	 * the row will be gone, but if we fail, dropdb() can be invoked again.
+	 */
+	CatalogTupleDelete(pgdbrel, &tup->t_self);
+
+	/*
 	 * Drop db-specific replication slots.
 	 */
 	ReplicationSlotsDropDBSlots(db_id);
@@ -1666,11 +1697,6 @@ dropdb(const char *dbname, bool missing_ok, bool force)
 	 * dirty buffer to the dead database later...
 	 */
 	DropDatabaseBuffers(db_id);
-
-	/*
-	 * Tell the cumulative stats system to forget it immediately, too.
-	 */
-	pgstat_drop_database(db_id);
 
 	/*
 	 * Tell checkpointer to forget any pending fsync and unlink requests for
@@ -2188,7 +2214,7 @@ AlterDatabase(ParseState *pstate, AlterDatabaseStmt *stmt, bool isTopLevel)
 	ListCell   *option;
 	bool		dbistemplate = false;
 	bool		dballowconnections = true;
-	int			dbconnlimit = -1;
+	int			dbconnlimit = DATCONNLIMIT_UNLIMITED;
 	DefElem    *distemplate = NULL;
 	DefElem    *dallowconnections = NULL;
 	DefElem    *dconnlimit = NULL;
@@ -2259,7 +2285,7 @@ AlterDatabase(ParseState *pstate, AlterDatabaseStmt *stmt, bool isTopLevel)
 	if (dconnlimit && dconnlimit->arg)
 	{
 		dbconnlimit = defGetInt32(dconnlimit);
-		if (dbconnlimit < -1)
+		if (dbconnlimit < DATCONNLIMIT_UNLIMITED)
 			ereport(ERROR,
 					(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
 					 errmsg("invalid connection limit: %d", dbconnlimit)));
@@ -2285,6 +2311,14 @@ AlterDatabase(ParseState *pstate, AlterDatabaseStmt *stmt, bool isTopLevel)
 
 	datform = (Form_pg_database) GETSTRUCT(tuple);
 	dboid = datform->oid;
+
+	if (database_is_invalid_form(datform))
+	{
+		ereport(FATAL,
+				errcode(ERRCODE_OBJECT_NOT_IN_PREREQUISITE_STATE),
+				errmsg("cannot alter invalid database \"%s\"", stmt->dbname),
+				errhint("Use DROP DATABASE to drop invalid databases."));
+	}
 
 	if (!pg_database_ownercheck(dboid, GetUserId()))
 		aclcheck_error(ACLCHECK_NOT_OWNER, OBJECT_DATABASE,
@@ -3006,6 +3040,42 @@ get_database_name(Oid dbid)
 
 	return result;
 }
+
+
+/*
+ * While dropping a database the pg_database row is marked invalid, but the
+ * catalog contents still exist. Connections to such a database are not
+ * allowed.
+ */
+bool
+database_is_invalid_form(Form_pg_database datform)
+{
+	return datform->datconnlimit == DATCONNLIMIT_INVALID_DB;
+}
+
+
+/*
+ * Convenience wrapper around database_is_invalid_form()
+ */
+bool
+database_is_invalid_oid(Oid dboid)
+{
+	HeapTuple	dbtup;
+	Form_pg_database dbform;
+	bool		invalid;
+
+	dbtup = SearchSysCache1(DATABASEOID, ObjectIdGetDatum(dboid));
+	if (!HeapTupleIsValid(dbtup))
+		elog(ERROR, "cache lookup failed for database %u", dboid);
+	dbform = (Form_pg_database) GETSTRUCT(dbtup);
+
+	invalid = database_is_invalid_form(dbform);
+
+	ReleaseSysCache(dbtup);
+
+	return invalid;
+}
+
 
 /*
  * recovery_create_dbdir()

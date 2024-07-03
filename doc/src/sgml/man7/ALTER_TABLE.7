@@ -2,12 +2,12 @@
 .\"     Title: ALTER TABLE
 .\"    Author: The PostgreSQL Global Development Group
 .\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
-.\"      Date: 2023
-.\"    Manual: PostgreSQL 15.3 Documentation
-.\"    Source: PostgreSQL 15.3
+.\"      Date: 2024
+.\"    Manual: PostgreSQL 15.7 Documentation
+.\"    Source: PostgreSQL 15.7
 .\"  Language: English
 .\"
-.TH "ALTER TABLE" "7" "2023" "PostgreSQL 15.3" "PostgreSQL 15.3 Documentation"
+.TH "ALTER TABLE" "7" "2024" "PostgreSQL 15.7" "PostgreSQL 15.7 Documentation"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -145,7 +145,7 @@ and \fItable_constraint_using_index\fR is:
 
 \fIexclude_element\fR in an EXCLUDE constraint is:
 
-{ \fIcolumn_name\fR | ( \fIexpression\fR ) } [ \fIopclass\fR ] [ ASC | DESC ] [ NULLS { FIRST | LAST } ]
+{ \fIcolumn_name\fR | ( \fIexpression\fR ) } [ COLLATE \fIcollation\fR ] [ \fIopclass\fR [ ( \fIopclass_parameter\fR = \fIvalue\fR [, \&.\&.\&. ] ) ] ] [ ASC | DESC ] [ NULLS { FIRST | LAST } ]
 
 \fIreferential_action\fR in a FOREIGN KEY/REFERENCES constraint is:
 

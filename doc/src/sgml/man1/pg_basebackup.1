@@ -2,12 +2,12 @@
 .\"     Title: pg_basebackup
 .\"    Author: The PostgreSQL Global Development Group
 .\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
-.\"      Date: 2023
-.\"    Manual: PostgreSQL 15.3 Documentation
-.\"    Source: PostgreSQL 15.3
+.\"      Date: 2024
+.\"    Manual: PostgreSQL 15.7 Documentation
+.\"    Source: PostgreSQL 15.7
 .\"  Language: English
 .\"
-.TH "PG_BASEBACKUP" "1" "2023" "PostgreSQL 15.3" "PostgreSQL 15.3 Documentation"
+.TH "PG_BASEBACKUP" "1" "2024" "PostgreSQL 15.7" "PostgreSQL 15.7 Documentation"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -659,7 +659,7 @@ is not used), during which
 pg_basebackup
 will appear to be idle\&.
 .PP
-The backup will include all files in the data directory and tablespaces, including the configuration files and any additional files placed in the directory by third parties, except certain temporary files managed by PostgreSQL\&. But only regular files and directories are copied, except that symbolic links used for tablespaces are preserved\&. Symbolic links pointing to certain directories known to PostgreSQL are copied as empty directories\&. Other symbolic links and special device files are skipped\&. See
+The backup will include all files in the data directory and tablespaces, including the configuration files and any additional files placed in the directory by third parties, except certain temporary files managed by PostgreSQL and operating system files\&. But only regular files and directories are copied, except that symbolic links used for tablespaces are preserved\&. Symbolic links pointing to certain directories known to PostgreSQL are copied as empty directories\&. Other symbolic links and special device files are skipped\&. See
 Section\ \&55.4
 for the precise details\&.
 .PP

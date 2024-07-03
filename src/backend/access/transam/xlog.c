@@ -974,8 +974,10 @@ XLogInsertRecord(XLogRecData *rdata,
 
 		if (!debug_reader)
 			debug_reader = XLogReaderAllocate(wal_segment_size, NULL,
-											  XL_ROUTINE(), NULL);
-
+											  XL_ROUTINE(.page_read = NULL,
+														 .segment_open = NULL,
+														 .segment_close = NULL),
+											  NULL);
 		if (!debug_reader)
 		{
 			appendStringInfoString(&buf, "error decoding record: out of memory while allocating a WAL reading processor");
@@ -5544,7 +5546,11 @@ StartupXLOG(void)
 	TrimCLOG();
 	TrimMultiXact();
 
-	/* Reload shared-memory state for prepared transactions */
+	/*
+	 * Reload shared-memory state for prepared transactions.  This needs to
+	 * happen before renaming the last partial segment of the old timeline as
+	 * it may be possible that we have to recovery some transactions from it.
+	 */
 	RecoverPreparedTransactions();
 
 	/* Shut down xlogreader */

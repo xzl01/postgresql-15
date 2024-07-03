@@ -1633,15 +1633,20 @@ char *token_start;
 static int state_before_str_start;
 static int state_before_str_stop;
 
-struct _yy_buffer
+/*
+ * State for handling include files and macro expansion.  We use a new
+ * flex input buffer for each level of include or macro, and create a
+ * struct _yy_buffer to remember the previous level.  There is not a struct
+ * for the currently active input source; that state is kept in the global
+ * variables YY_CURRENT_BUFFER, yylineno, and input_filename.
+ */
+static struct _yy_buffer
 {
 	YY_BUFFER_STATE		buffer;
 	long				lineno;
 	char			   *filename;
 	struct _yy_buffer  *next;
 } *yy_buffer = NULL;
-
-static char *old;
 
 /*
  * Vars for handling ifdef/elif/endif constructs.  preproc_tos is the current
@@ -1668,7 +1673,7 @@ static struct _if_value
 	bool		else_branch;
 } stacked_if_value[MAX_NESTED_IF];
 
-#line 1672 "pgc.c"
+#line 1677 "pgc.c"
 #define YY_NO_INPUT 1
 /*
  * OK, here is a short description of lex/flex rules behavior.
@@ -1830,7 +1835,7 @@ static struct _if_value
 /* and then the other commands starting with "i", we have to add these
  * separately because the cppline production would match on "include" too
  */
-#line 1834 "pgc.c"
+#line 1839 "pgc.c"
 
 #define INITIAL 0
 #define xb 1
@@ -2068,16 +2073,18 @@ YY_DECL
 		}
 
 	{
-#line 431 "pgc.l"
+#line 436 "pgc.l"
 
 
 
-#line 435 "pgc.l"
+#line 440 "pgc.l"
 		/* code to execute during start of each call of yylex() */
+		char *newdefsymbol = NULL;
+
 		token_start = NULL;
 
 
-#line 2081 "pgc.c"
+#line 2088 "pgc.c"
 
 	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
@@ -2143,7 +2150,7 @@ do_action:	/* This label is used only to access EOF actions. */
 case 1:
 /* rule 1 can match eol */
 YY_RULE_SETUP
-#line 440 "pgc.l"
+#line 447 "pgc.l"
 {
 					/* ignore */
 				}
@@ -2152,7 +2159,7 @@ YY_RULE_SETUP
 
 case 2:
 YY_RULE_SETUP
-#line 446 "pgc.l"
+#line 453 "pgc.l"
 {
 					token_start = yytext;
 					state_before_str_start = YYSTATE;
@@ -2167,7 +2174,7 @@ YY_RULE_SETUP
 
 case 3:
 YY_RULE_SETUP
-#line 458 "pgc.l"
+#line 465 "pgc.l"
 {
 					if (state_before_str_start == SQL)
 					{
@@ -2184,7 +2191,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 472 "pgc.l"
+#line 479 "pgc.l"
 {
 					if (state_before_str_start == SQL)
 					{
@@ -2211,27 +2218,27 @@ YY_RULE_SETUP
 case 5:
 /* rule 5 can match eol */
 YY_RULE_SETUP
-#line 495 "pgc.l"
+#line 502 "pgc.l"
 {
 					ECHO;
 				}
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 499 "pgc.l"
+#line 506 "pgc.l"
 {
 					ECHO;
 				}
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 503 "pgc.l"
+#line 510 "pgc.l"
 {
 					ECHO;
 				}
 	YY_BREAK
 case YY_STATE_EOF(xc):
-#line 507 "pgc.l"
+#line 514 "pgc.l"
 {
 					mmfatal(PARSE_ERROR, "unterminated /* comment");
 				}
@@ -2240,7 +2247,7 @@ case YY_STATE_EOF(xc):
 
 case 8:
 YY_RULE_SETUP
-#line 513 "pgc.l"
+#line 520 "pgc.l"
 {
 					token_start = yytext;
 					state_before_str_start = YYSTATE;
@@ -2251,22 +2258,22 @@ YY_RULE_SETUP
 /* <SQL> */
 case 9:
 /* rule 9 can match eol */
-#line 522 "pgc.l"
+#line 529 "pgc.l"
 case 10:
 /* rule 10 can match eol */
 YY_RULE_SETUP
-#line 522 "pgc.l"
+#line 529 "pgc.l"
 {
 					addlit(yytext, yyleng);
 				}
 	YY_BREAK
 case YY_STATE_EOF(xb):
-#line 525 "pgc.l"
+#line 532 "pgc.l"
 { mmfatal(PARSE_ERROR, "unterminated bit string literal"); }
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 527 "pgc.l"
+#line 534 "pgc.l"
 {
 					token_start = yytext;
 					state_before_str_start = YYSTATE;
@@ -2275,12 +2282,12 @@ YY_RULE_SETUP
 				}
 	YY_BREAK
 case YY_STATE_EOF(xh):
-#line 533 "pgc.l"
+#line 540 "pgc.l"
 { mmfatal(PARSE_ERROR, "unterminated hexadecimal string literal"); }
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 535 "pgc.l"
+#line 542 "pgc.l"
 {
 					token_start = yytext;
 					state_before_str_start = YYSTATE;
@@ -2291,7 +2298,7 @@ YY_RULE_SETUP
 
 case 13:
 YY_RULE_SETUP
-#line 543 "pgc.l"
+#line 550 "pgc.l"
 {
 					/* National character.
 					 * Transfer it as-is to the backend.
@@ -2304,7 +2311,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 553 "pgc.l"
+#line 560 "pgc.l"
 {
 					token_start = yytext;
 					state_before_str_start = YYSTATE;
@@ -2314,7 +2321,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 559 "pgc.l"
+#line 566 "pgc.l"
 {
 					token_start = yytext;
 					state_before_str_start = YYSTATE;
@@ -2324,7 +2331,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 565 "pgc.l"
+#line 572 "pgc.l"
 {
 					token_start = yytext;
 					state_before_str_start = YYSTATE;
@@ -2335,7 +2342,7 @@ YY_RULE_SETUP
 /* <SQL> */
 case 17:
 YY_RULE_SETUP
-#line 573 "pgc.l"
+#line 580 "pgc.l"
 {
 					/*
 					 * When we are scanning a quoted string and see an end
@@ -2352,7 +2359,7 @@ YY_RULE_SETUP
 case 18:
 /* rule 18 can match eol */
 YY_RULE_SETUP
-#line 585 "pgc.l"
+#line 592 "pgc.l"
 {
 					/*
 					 * Found a quote continuation, so return to the in-quote
@@ -2364,13 +2371,13 @@ YY_RULE_SETUP
 	YY_BREAK
 case 19:
 /* rule 19 can match eol */
-#line 594 "pgc.l"
+#line 601 "pgc.l"
 case 20:
 /* rule 20 can match eol */
-#line 595 "pgc.l"
+#line 602 "pgc.l"
 YY_RULE_SETUP
 case YY_STATE_EOF(xqs):
-#line 595 "pgc.l"
+#line 602 "pgc.l"
 {
 					/*
 					 * Failed to see a quote continuation.  Throw back
@@ -2413,31 +2420,31 @@ case YY_STATE_EOF(xqs):
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 635 "pgc.l"
+#line 642 "pgc.l"
 { addlit(yytext, yyleng); }
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 636 "pgc.l"
+#line 643 "pgc.l"
 { addlit(yytext, yyleng); }
 	YY_BREAK
 case 23:
 /* rule 23 can match eol */
 YY_RULE_SETUP
-#line 637 "pgc.l"
+#line 644 "pgc.l"
 { addlit(yytext, yyleng); }
 	YY_BREAK
 case 24:
 /* rule 24 can match eol */
 YY_RULE_SETUP
-#line 638 "pgc.l"
+#line 645 "pgc.l"
 {
 					addlit(yytext, yyleng);
 				}
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 641 "pgc.l"
+#line 648 "pgc.l"
 {
 					addlit(yytext, yyleng);
 				}
@@ -2445,28 +2452,28 @@ YY_RULE_SETUP
 case 26:
 /* rule 26 can match eol */
 YY_RULE_SETUP
-#line 644 "pgc.l"
+#line 651 "pgc.l"
 {
 					addlit(yytext, yyleng);
 				}
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 647 "pgc.l"
+#line 654 "pgc.l"
 {
 					addlit(yytext, yyleng);
 				}
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 650 "pgc.l"
+#line 657 "pgc.l"
 {
 					addlit(yytext, yyleng);
 				}
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 653 "pgc.l"
+#line 660 "pgc.l"
 {
 					/* This is only needed for \ just before EOF */
 					addlitchar(yytext[0]);
@@ -2477,13 +2484,13 @@ case YY_STATE_EOF(xqc):
 case YY_STATE_EOF(xe):
 case YY_STATE_EOF(xn):
 case YY_STATE_EOF(xus):
-#line 657 "pgc.l"
+#line 664 "pgc.l"
 { mmfatal(PARSE_ERROR, "unterminated quoted string"); }
 	YY_BREAK
 
 case 30:
 YY_RULE_SETUP
-#line 660 "pgc.l"
+#line 667 "pgc.l"
 {
 					token_start = yytext;
 					if (dolqstart)
@@ -2496,7 +2503,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 31:
 YY_RULE_SETUP
-#line 669 "pgc.l"
+#line 676 "pgc.l"
 {
 					/* throw back all but the initial "$" */
 					yyless(1);
@@ -2507,7 +2514,7 @@ YY_RULE_SETUP
 /* <SQL> */
 case 32:
 YY_RULE_SETUP
-#line 677 "pgc.l"
+#line 684 "pgc.l"
 {
 					if (strcmp(yytext, dolqstart) == 0)
 					{
@@ -2533,34 +2540,34 @@ YY_RULE_SETUP
 case 33:
 /* rule 33 can match eol */
 YY_RULE_SETUP
-#line 698 "pgc.l"
+#line 705 "pgc.l"
 {
 					addlit(yytext, yyleng);
 				}
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 701 "pgc.l"
+#line 708 "pgc.l"
 {
 					addlit(yytext, yyleng);
 				}
 	YY_BREAK
 case 35:
 YY_RULE_SETUP
-#line 704 "pgc.l"
+#line 711 "pgc.l"
 {
 					/* single quote or dollar sign */
 					addlitchar(yytext[0]);
 				}
 	YY_BREAK
 case YY_STATE_EOF(xdolq):
-#line 708 "pgc.l"
+#line 715 "pgc.l"
 { mmfatal(PARSE_ERROR, "unterminated dollar-quoted string"); }
 	YY_BREAK
 
 case 36:
 YY_RULE_SETUP
-#line 711 "pgc.l"
+#line 718 "pgc.l"
 {
 					state_before_str_start = YYSTATE;
 					BEGIN(xd);
@@ -2569,7 +2576,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 37:
 YY_RULE_SETUP
-#line 716 "pgc.l"
+#line 723 "pgc.l"
 {
 					state_before_str_start = YYSTATE;
 					BEGIN(xui);
@@ -2579,7 +2586,7 @@ YY_RULE_SETUP
 /* <SQL> */
 case 38:
 YY_RULE_SETUP
-#line 723 "pgc.l"
+#line 730 "pgc.l"
 {
 					BEGIN(state_before_str_start);
 					if (literallen == 0)
@@ -2598,7 +2605,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 39:
 YY_RULE_SETUP
-#line 738 "pgc.l"
+#line 745 "pgc.l"
 {
 					BEGIN(state_before_str_start);
 					base_yylval.str = mm_strdup(literalbuf);
@@ -2607,7 +2614,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 40:
 YY_RULE_SETUP
-#line 743 "pgc.l"
+#line 750 "pgc.l"
 {
 					BEGIN(state_before_str_start);
 					if (literallen == 0)
@@ -2619,7 +2626,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 41:
 YY_RULE_SETUP
-#line 751 "pgc.l"
+#line 758 "pgc.l"
 {
 					addlit(yytext, yyleng);
 				}
@@ -2627,19 +2634,19 @@ YY_RULE_SETUP
 case 42:
 /* rule 42 can match eol */
 YY_RULE_SETUP
-#line 754 "pgc.l"
+#line 761 "pgc.l"
 {
 					addlit(yytext, yyleng);
 				}
 	YY_BREAK
 case YY_STATE_EOF(xd):
 case YY_STATE_EOF(xui):
-#line 757 "pgc.l"
+#line 764 "pgc.l"
 { mmfatal(PARSE_ERROR, "unterminated quoted identifier"); }
 	YY_BREAK
 case 43:
 YY_RULE_SETUP
-#line 758 "pgc.l"
+#line 765 "pgc.l"
 {
 					state_before_str_start = YYSTATE;
 					BEGIN(xdc);
@@ -2649,61 +2656,61 @@ YY_RULE_SETUP
 case 44:
 /* rule 44 can match eol */
 YY_RULE_SETUP
-#line 763 "pgc.l"
+#line 770 "pgc.l"
 {
 					addlit(yytext, yyleng);
 				}
 	YY_BREAK
 case YY_STATE_EOF(xdc):
-#line 766 "pgc.l"
+#line 773 "pgc.l"
 { mmfatal(PARSE_ERROR, "unterminated quoted string"); }
 	YY_BREAK
 
 case 45:
 YY_RULE_SETUP
-#line 769 "pgc.l"
+#line 776 "pgc.l"
 {
 					return TYPECAST;
 				}
 	YY_BREAK
 case 46:
 YY_RULE_SETUP
-#line 773 "pgc.l"
+#line 780 "pgc.l"
 {
 					return DOT_DOT;
 				}
 	YY_BREAK
 case 47:
 YY_RULE_SETUP
-#line 777 "pgc.l"
+#line 784 "pgc.l"
 {
 					return COLON_EQUALS;
 				}
 	YY_BREAK
 case 48:
 YY_RULE_SETUP
-#line 781 "pgc.l"
+#line 788 "pgc.l"
 {
 					return EQUALS_GREATER;
 				}
 	YY_BREAK
 case 49:
 YY_RULE_SETUP
-#line 785 "pgc.l"
+#line 792 "pgc.l"
 {
 					return LESS_EQUALS;
 				}
 	YY_BREAK
 case 50:
 YY_RULE_SETUP
-#line 789 "pgc.l"
+#line 796 "pgc.l"
 {
 					return GREATER_EQUALS;
 				}
 	YY_BREAK
 case 51:
 YY_RULE_SETUP
-#line 793 "pgc.l"
+#line 800 "pgc.l"
 {
 					/* We accept both "<>" and "!=" as meaning NOT_EQUALS */
 					return NOT_EQUALS;
@@ -2711,7 +2718,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 52:
 YY_RULE_SETUP
-#line 798 "pgc.l"
+#line 805 "pgc.l"
 {
 					/* We accept both "<>" and "!=" as meaning NOT_EQUALS */
 					return NOT_EQUALS;
@@ -2719,7 +2726,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 53:
 YY_RULE_SETUP
-#line 803 "pgc.l"
+#line 810 "pgc.l"
 {
 			  /* are we simulating Informix? */
 				if (INFORMIX_MODE)
@@ -2732,7 +2739,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 54:
 YY_RULE_SETUP
-#line 813 "pgc.l"
+#line 820 "pgc.l"
 {
 					/*
 					 * We may find a ';' inside a structure
@@ -2746,7 +2753,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 55:
 YY_RULE_SETUP
-#line 824 "pgc.l"
+#line 831 "pgc.l"
 {
 					/*
 					 * Check for embedded slash-star or dash-dash; those
@@ -2846,7 +2853,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 56:
 YY_RULE_SETUP
-#line 921 "pgc.l"
+#line 928 "pgc.l"
 {
 					base_yylval.ival = atol(yytext+1);
 					return PARAM;
@@ -2854,14 +2861,14 @@ YY_RULE_SETUP
 	YY_BREAK
 case 57:
 YY_RULE_SETUP
-#line 925 "pgc.l"
+#line 932 "pgc.l"
 {
 					mmfatal(PARSE_ERROR, "trailing junk after parameter");
 				}
 	YY_BREAK
 case 58:
 YY_RULE_SETUP
-#line 929 "pgc.l"
+#line 936 "pgc.l"
 {
 					base_yylval.str = mm_strdup(yytext);
 					return IP;
@@ -2871,14 +2878,14 @@ YY_RULE_SETUP
 
 case 59:
 YY_RULE_SETUP
-#line 936 "pgc.l"
+#line 943 "pgc.l"
 {
 					return process_integer_literal(yytext, &base_yylval);
 				}
 	YY_BREAK
 case 60:
 YY_RULE_SETUP
-#line 939 "pgc.l"
+#line 946 "pgc.l"
 {
 					base_yylval.str = mm_strdup(yytext);
 					return FCONST;
@@ -2886,7 +2893,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 61:
 YY_RULE_SETUP
-#line 943 "pgc.l"
+#line 950 "pgc.l"
 {
 					/* throw back the .., and treat as integer */
 					yyless(yyleng - 2);
@@ -2895,7 +2902,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 62:
 YY_RULE_SETUP
-#line 948 "pgc.l"
+#line 955 "pgc.l"
 {
 					base_yylval.str = mm_strdup(yytext);
 					return FCONST;
@@ -2903,7 +2910,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 63:
 YY_RULE_SETUP
-#line 952 "pgc.l"
+#line 959 "pgc.l"
 {
 					/*
 					 * throw back the [Ee][+-], and figure out whether what
@@ -2921,21 +2928,21 @@ YY_RULE_SETUP
 	 */
 case 64:
 YY_RULE_SETUP
-#line 967 "pgc.l"
+#line 974 "pgc.l"
 {
 					mmfatal(PARSE_ERROR, "trailing junk after numeric literal");
 				}
 	YY_BREAK
 case 65:
 YY_RULE_SETUP
-#line 970 "pgc.l"
+#line 977 "pgc.l"
 {
 					mmfatal(PARSE_ERROR, "trailing junk after numeric literal");
 				}
 	YY_BREAK
 case 66:
 YY_RULE_SETUP
-#line 973 "pgc.l"
+#line 980 "pgc.l"
 {
 					mmfatal(PARSE_ERROR, "trailing junk after numeric literal");
 				}
@@ -2943,7 +2950,7 @@ YY_RULE_SETUP
 case 67:
 /* rule 67 can match eol */
 YY_RULE_SETUP
-#line 977 "pgc.l"
+#line 984 "pgc.l"
 {
 					base_yylval.str = mm_strdup(yytext+1);
 					return CVARIABLE;
@@ -2951,8 +2958,9 @@ YY_RULE_SETUP
 	YY_BREAK
 case 68:
 YY_RULE_SETUP
-#line 982 "pgc.l"
+#line 989 "pgc.l"
 {
+					/* First check to see if it's a define symbol to expand */
 					if (!isdefine())
 					{
 						int		kwvalue;
@@ -2982,7 +2990,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 69:
 YY_RULE_SETUP
-#line 1010 "pgc.l"
+#line 1018 "pgc.l"
 {
 					return yytext[0];
 				}
@@ -2994,12 +3002,12 @@ YY_RULE_SETUP
 case 70:
 /* rule 70 can match eol */
 YY_RULE_SETUP
-#line 1019 "pgc.l"
+#line 1027 "pgc.l"
 { BEGIN(SQL); return SQL_START; }
 	YY_BREAK
 case 71:
 YY_RULE_SETUP
-#line 1020 "pgc.l"
+#line 1028 "pgc.l"
 {
 						/* are we simulating Informix? */
 						if (INFORMIX_MODE)
@@ -3014,12 +3022,12 @@ YY_RULE_SETUP
 case 72:
 /* rule 72 can match eol */
 YY_RULE_SETUP
-#line 1030 "pgc.l"
+#line 1038 "pgc.l"
 { ECHO; }
 	YY_BREAK
 case 73:
 YY_RULE_SETUP
-#line 1031 "pgc.l"
+#line 1039 "pgc.l"
 {
 						char* endptr;
 
@@ -3037,7 +3045,7 @@ YY_RULE_SETUP
 case 74:
 /* rule 74 can match eol */
 YY_RULE_SETUP
-#line 1044 "pgc.l"
+#line 1052 "pgc.l"
 {
 						if (system_includes)
 						{
@@ -3054,7 +3062,7 @@ YY_RULE_SETUP
 case 75:
 /* rule 75 can match eol */
 YY_RULE_SETUP
-#line 1056 "pgc.l"
+#line 1064 "pgc.l"
 {
 						if (system_includes)
 						{
@@ -3071,7 +3079,7 @@ YY_RULE_SETUP
 case 76:
 /* rule 76 can match eol */
 YY_RULE_SETUP
-#line 1068 "pgc.l"
+#line 1076 "pgc.l"
 {
 						base_yylval.str = mm_strdup(yytext);
 						return CPP_LINE;
@@ -3079,7 +3087,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 77:
 YY_RULE_SETUP
-#line 1072 "pgc.l"
+#line 1080 "pgc.l"
 {
 						/*
 						 * Try to detect a function name:
@@ -3111,185 +3119,185 @@ YY_RULE_SETUP
 	YY_BREAK
 case 78:
 YY_RULE_SETUP
-#line 1100 "pgc.l"
+#line 1108 "pgc.l"
 { mmerror(PARSE_ERROR, ET_ERROR, "nested /* ... */ comments"); }
 	YY_BREAK
 case 79:
 YY_RULE_SETUP
-#line 1101 "pgc.l"
+#line 1109 "pgc.l"
 { return ':'; }
 	YY_BREAK
 case 80:
 YY_RULE_SETUP
-#line 1102 "pgc.l"
+#line 1110 "pgc.l"
 { return ';'; }
 	YY_BREAK
 case 81:
 YY_RULE_SETUP
-#line 1103 "pgc.l"
+#line 1111 "pgc.l"
 { return ','; }
 	YY_BREAK
 case 82:
 YY_RULE_SETUP
-#line 1104 "pgc.l"
+#line 1112 "pgc.l"
 { return '*'; }
 	YY_BREAK
 case 83:
 YY_RULE_SETUP
-#line 1105 "pgc.l"
+#line 1113 "pgc.l"
 { return '%'; }
 	YY_BREAK
 case 84:
 YY_RULE_SETUP
-#line 1106 "pgc.l"
+#line 1114 "pgc.l"
 { return '/'; }
 	YY_BREAK
 case 85:
 YY_RULE_SETUP
-#line 1107 "pgc.l"
+#line 1115 "pgc.l"
 { return '+'; }
 	YY_BREAK
 case 86:
 YY_RULE_SETUP
-#line 1108 "pgc.l"
+#line 1116 "pgc.l"
 { return '-'; }
 	YY_BREAK
 case 87:
 YY_RULE_SETUP
-#line 1109 "pgc.l"
+#line 1117 "pgc.l"
 { parenths_open++; return '('; }
 	YY_BREAK
 case 88:
 YY_RULE_SETUP
-#line 1110 "pgc.l"
+#line 1118 "pgc.l"
 { parenths_open--; return ')'; }
 	YY_BREAK
 case 89:
 /* rule 89 can match eol */
 YY_RULE_SETUP
-#line 1111 "pgc.l"
+#line 1119 "pgc.l"
 { ECHO; }
 	YY_BREAK
 case 90:
 YY_RULE_SETUP
-#line 1112 "pgc.l"
+#line 1120 "pgc.l"
 { return '{'; }
 	YY_BREAK
 case 91:
 YY_RULE_SETUP
-#line 1113 "pgc.l"
+#line 1121 "pgc.l"
 { return '}'; }
 	YY_BREAK
 case 92:
 YY_RULE_SETUP
-#line 1114 "pgc.l"
+#line 1122 "pgc.l"
 { return '['; }
 	YY_BREAK
 case 93:
 YY_RULE_SETUP
-#line 1115 "pgc.l"
+#line 1123 "pgc.l"
 { return ']'; }
 	YY_BREAK
 case 94:
 YY_RULE_SETUP
-#line 1116 "pgc.l"
+#line 1124 "pgc.l"
 { return '='; }
 	YY_BREAK
 case 95:
 YY_RULE_SETUP
-#line 1117 "pgc.l"
+#line 1125 "pgc.l"
 { return S_MEMBER; }
 	YY_BREAK
 case 96:
 YY_RULE_SETUP
-#line 1118 "pgc.l"
+#line 1126 "pgc.l"
 { return S_RSHIFT; }
 	YY_BREAK
 case 97:
 YY_RULE_SETUP
-#line 1119 "pgc.l"
+#line 1127 "pgc.l"
 { return S_LSHIFT; }
 	YY_BREAK
 case 98:
 YY_RULE_SETUP
-#line 1120 "pgc.l"
+#line 1128 "pgc.l"
 { return S_OR; }
 	YY_BREAK
 case 99:
 YY_RULE_SETUP
-#line 1121 "pgc.l"
+#line 1129 "pgc.l"
 { return S_AND; }
 	YY_BREAK
 case 100:
 YY_RULE_SETUP
-#line 1122 "pgc.l"
+#line 1130 "pgc.l"
 { return S_INC; }
 	YY_BREAK
 case 101:
 YY_RULE_SETUP
-#line 1123 "pgc.l"
+#line 1131 "pgc.l"
 { return S_DEC; }
 	YY_BREAK
 case 102:
 YY_RULE_SETUP
-#line 1124 "pgc.l"
+#line 1132 "pgc.l"
 { return S_EQUAL; }
 	YY_BREAK
 case 103:
 YY_RULE_SETUP
-#line 1125 "pgc.l"
+#line 1133 "pgc.l"
 { return S_NEQUAL; }
 	YY_BREAK
 case 104:
 YY_RULE_SETUP
-#line 1126 "pgc.l"
+#line 1134 "pgc.l"
 { return S_ADD; }
 	YY_BREAK
 case 105:
 YY_RULE_SETUP
-#line 1127 "pgc.l"
+#line 1135 "pgc.l"
 { return S_SUB; }
 	YY_BREAK
 case 106:
 YY_RULE_SETUP
-#line 1128 "pgc.l"
+#line 1136 "pgc.l"
 { return S_MUL; }
 	YY_BREAK
 case 107:
 YY_RULE_SETUP
-#line 1129 "pgc.l"
+#line 1137 "pgc.l"
 { return S_DIV; }
 	YY_BREAK
 case 108:
 YY_RULE_SETUP
-#line 1130 "pgc.l"
+#line 1138 "pgc.l"
 { return S_MOD; }
 	YY_BREAK
 case 109:
 YY_RULE_SETUP
-#line 1131 "pgc.l"
+#line 1139 "pgc.l"
 { return S_MEMPOINT; }
 	YY_BREAK
 case 110:
 YY_RULE_SETUP
-#line 1132 "pgc.l"
+#line 1140 "pgc.l"
 { return S_DOTPOINT; }
 	YY_BREAK
 case 111:
 YY_RULE_SETUP
-#line 1133 "pgc.l"
+#line 1141 "pgc.l"
 { return S_ANYTHING; }
 	YY_BREAK
 case 112:
 /* rule 112 can match eol */
 YY_RULE_SETUP
-#line 1134 "pgc.l"
+#line 1142 "pgc.l"
 { BEGIN(def_ident); }
 	YY_BREAK
 case 113:
 /* rule 113 can match eol */
 YY_RULE_SETUP
-#line 1135 "pgc.l"
+#line 1143 "pgc.l"
 {
 						/* are we simulating Informix? */
 						if (INFORMIX_MODE)
@@ -3306,13 +3314,13 @@ YY_RULE_SETUP
 case 114:
 /* rule 114 can match eol */
 YY_RULE_SETUP
-#line 1147 "pgc.l"
+#line 1155 "pgc.l"
 { BEGIN(undef); }
 	YY_BREAK
 case 115:
 /* rule 115 can match eol */
 YY_RULE_SETUP
-#line 1148 "pgc.l"
+#line 1156 "pgc.l"
 {
 						/* are we simulating Informix? */
 						if (INFORMIX_MODE)
@@ -3329,7 +3337,7 @@ YY_RULE_SETUP
 case 116:
 /* rule 116 can match eol */
 YY_RULE_SETUP
-#line 1160 "pgc.l"
+#line 1168 "pgc.l"
 {
 					struct _defines *ptr, *ptr2 = NULL;
 					int i;
@@ -3345,17 +3353,23 @@ YY_RULE_SETUP
 					yytext[i+1] = '\0';
 
 
-					for (ptr = defines; ptr != NULL; ptr2 = ptr, ptr = ptr->next)
+					/* Find and unset any matching define; should be only 1 */
+					for (ptr = defines; ptr; ptr2 = ptr, ptr = ptr->next)
 					{
-						if (strcmp(yytext, ptr->olddef) == 0)
+						if (strcmp(yytext, ptr->name) == 0)
 						{
-							if (ptr2 == NULL)
-								defines = ptr->next;
-							else
-								ptr2->next = ptr->next;
-							free(ptr->newdef);
-							free(ptr->olddef);
-							free(ptr);
+							free(ptr->value);
+							ptr->value = NULL;
+							/* We cannot forget it if there's a cmdvalue */
+							if (ptr->cmdvalue == NULL)
+							{
+								if (ptr2 == NULL)
+									defines = ptr->next;
+								else
+									ptr2->next = ptr->next;
+								free(ptr->name);
+								free(ptr);
+							}
 							break;
 						}
 					}
@@ -3366,7 +3380,7 @@ YY_RULE_SETUP
 case 117:
 /* rule 117 can match eol */
 YY_RULE_SETUP
-#line 1192 "pgc.l"
+#line 1206 "pgc.l"
 {
 						mmfatal(PARSE_ERROR, "missing identifier in EXEC SQL UNDEF command");
 						yyterminate();
@@ -3375,13 +3389,13 @@ YY_RULE_SETUP
 case 118:
 /* rule 118 can match eol */
 YY_RULE_SETUP
-#line 1196 "pgc.l"
+#line 1210 "pgc.l"
 { BEGIN(incl); }
 	YY_BREAK
 case 119:
 /* rule 119 can match eol */
 YY_RULE_SETUP
-#line 1197 "pgc.l"
+#line 1211 "pgc.l"
 {
 					  /* are we simulating Informix? */
 					  if (INFORMIX_MODE)
@@ -3398,7 +3412,7 @@ YY_RULE_SETUP
 case 120:
 /* rule 120 can match eol */
 YY_RULE_SETUP
-#line 1209 "pgc.l"
+#line 1223 "pgc.l"
 {
 					  if (preproc_tos >= MAX_NESTED_IF-1)
 						  mmfatal(PARSE_ERROR, "too many nested EXEC SQL IFDEF conditions");
@@ -3413,7 +3427,7 @@ YY_RULE_SETUP
 case 121:
 /* rule 121 can match eol */
 YY_RULE_SETUP
-#line 1219 "pgc.l"
+#line 1233 "pgc.l"
 {
 					  /* are we simulating Informix? */
 					  if (INFORMIX_MODE)
@@ -3437,7 +3451,7 @@ YY_RULE_SETUP
 case 122:
 /* rule 122 can match eol */
 YY_RULE_SETUP
-#line 1238 "pgc.l"
+#line 1252 "pgc.l"
 {
 					  if (preproc_tos >= MAX_NESTED_IF-1)
 						  mmfatal(PARSE_ERROR, "too many nested EXEC SQL IFDEF conditions");
@@ -3452,7 +3466,7 @@ YY_RULE_SETUP
 case 123:
 /* rule 123 can match eol */
 YY_RULE_SETUP
-#line 1248 "pgc.l"
+#line 1262 "pgc.l"
 {
 					  /* are we simulating Informix? */
 					  if (INFORMIX_MODE)
@@ -3476,7 +3490,7 @@ YY_RULE_SETUP
 case 124:
 /* rule 124 can match eol */
 YY_RULE_SETUP
-#line 1267 "pgc.l"
+#line 1281 "pgc.l"
 {
 						if (preproc_tos == 0)
 							mmfatal(PARSE_ERROR, "missing matching \"EXEC SQL IFDEF\" / \"EXEC SQL IFNDEF\"");
@@ -3489,7 +3503,7 @@ YY_RULE_SETUP
 case 125:
 /* rule 125 can match eol */
 YY_RULE_SETUP
-#line 1275 "pgc.l"
+#line 1289 "pgc.l"
 {
 					/* are we simulating Informix? */
 					if (INFORMIX_MODE)
@@ -3511,7 +3525,7 @@ YY_RULE_SETUP
 case 126:
 /* rule 126 can match eol */
 YY_RULE_SETUP
-#line 1293 "pgc.l"
+#line 1307 "pgc.l"
 {	/* only exec sql endif pops the stack, so take care of duplicated 'else' */
 					if (preproc_tos == 0)
 						mmfatal(PARSE_ERROR, "missing matching \"EXEC SQL IFDEF\" / \"EXEC SQL IFNDEF\"");
@@ -3535,7 +3549,7 @@ YY_RULE_SETUP
 case 127:
 /* rule 127 can match eol */
 YY_RULE_SETUP
-#line 1312 "pgc.l"
+#line 1326 "pgc.l"
 {
 					/* are we simulating Informix? */
 					if (INFORMIX_MODE)
@@ -3568,7 +3582,7 @@ YY_RULE_SETUP
 case 128:
 /* rule 128 can match eol */
 YY_RULE_SETUP
-#line 1340 "pgc.l"
+#line 1354 "pgc.l"
 {
 					if (preproc_tos == 0)
 						mmfatal(PARSE_ERROR, "unmatched EXEC SQL ENDIF");
@@ -3584,7 +3598,7 @@ YY_RULE_SETUP
 case 129:
 /* rule 129 can match eol */
 YY_RULE_SETUP
-#line 1351 "pgc.l"
+#line 1365 "pgc.l"
 {
 					/* are we simulating Informix? */
 					if (INFORMIX_MODE)
@@ -3608,13 +3622,13 @@ YY_RULE_SETUP
 	YY_BREAK
 case 130:
 YY_RULE_SETUP
-#line 1372 "pgc.l"
+#line 1386 "pgc.l"
 { /* ignore */ }
 	YY_BREAK
 case 131:
 /* rule 131 can match eol */
 YY_RULE_SETUP
-#line 1374 "pgc.l"
+#line 1388 "pgc.l"
 {
 					{
 						struct _defines *defptr;
@@ -3631,11 +3645,17 @@ YY_RULE_SETUP
 							;
 						yytext[i+1] = '\0';
 
-						for (defptr = defines;
-							 defptr != NULL &&
-							 strcmp(yytext, defptr->olddef) != 0;
-							 defptr = defptr->next)
-							/* skip */ ;
+						/* Does a definition exist? */
+						for (defptr = defines; defptr; defptr = defptr->next)
+						{
+							if (strcmp(yytext, defptr->name) == 0)
+							{
+								/* Found it, but is it currently undefined? */
+								if (defptr->value == NULL)
+									defptr = NULL; /* pretend it's not found */
+								break;
+							}
+						}
 
 						this_active = (defptr ? ifcond : !ifcond);
 						stacked_if_value[preproc_tos].active =
@@ -3654,7 +3674,7 @@ YY_RULE_SETUP
 case 132:
 /* rule 132 can match eol */
 YY_RULE_SETUP
-#line 1410 "pgc.l"
+#line 1430 "pgc.l"
 {
 				mmfatal(PARSE_ERROR, "missing identifier in EXEC SQL IFDEF command");
 				yyterminate();
@@ -3662,9 +3682,9 @@ YY_RULE_SETUP
 	YY_BREAK
 case 133:
 YY_RULE_SETUP
-#line 1414 "pgc.l"
+#line 1434 "pgc.l"
 {
-				old = mm_strdup(yytext);
+				newdefsymbol = mm_strdup(yytext);
 				BEGIN(def);
 				startlit();
 			}
@@ -3672,7 +3692,7 @@ YY_RULE_SETUP
 case 134:
 /* rule 134 can match eol */
 YY_RULE_SETUP
-#line 1419 "pgc.l"
+#line 1439 "pgc.l"
 {
 				mmfatal(PARSE_ERROR, "missing identifier in EXEC SQL DEFINE command");
 				yyterminate();
@@ -3681,28 +3701,33 @@ YY_RULE_SETUP
 case 135:
 /* rule 135 can match eol */
 YY_RULE_SETUP
-#line 1423 "pgc.l"
+#line 1443 "pgc.l"
 {
-						struct _defines *ptr, *this;
+						struct _defines *ptr;
 
+						/* Does it already exist? */
 						for (ptr = defines; ptr != NULL; ptr = ptr->next)
 						{
-							 if (strcmp(old, ptr->olddef) == 0)
-							 {
-								free(ptr->newdef);
-								ptr->newdef = mm_strdup(literalbuf);
-							 }
+							if (strcmp(newdefsymbol, ptr->name) == 0)
+							{
+								free(ptr->value);
+								ptr->value = mm_strdup(literalbuf);
+								/* Don't leak newdefsymbol */
+								free(newdefsymbol);
+								break;
+							}
 						}
 						if (ptr == NULL)
 						{
-							this = (struct _defines *) mm_alloc(sizeof(struct _defines));
+							/* Not present, make a new entry */
+							ptr = (struct _defines *) mm_alloc(sizeof(struct _defines));
 
-							/* initial definition */
-							this->olddef = old;
-							this->newdef = mm_strdup(literalbuf);
-							this->next = defines;
-							this->used = NULL;
-							defines = this;
+							ptr->name = newdefsymbol;
+							ptr->value = mm_strdup(literalbuf);
+							ptr->cmdvalue = NULL;
+							ptr->used = NULL;
+							ptr->next = defines;
+							defines = ptr;
 						}
 
 						BEGIN(C);
@@ -3711,31 +3736,31 @@ YY_RULE_SETUP
 case 136:
 /* rule 136 can match eol */
 YY_RULE_SETUP
-#line 1448 "pgc.l"
+#line 1473 "pgc.l"
 { addlit(yytext, yyleng); }
 	YY_BREAK
 case 137:
 /* rule 137 can match eol */
 YY_RULE_SETUP
-#line 1449 "pgc.l"
+#line 1474 "pgc.l"
 {	parse_include(); }
 	YY_BREAK
 case 138:
 /* rule 138 can match eol */
 YY_RULE_SETUP
-#line 1450 "pgc.l"
+#line 1475 "pgc.l"
 {	parse_include(); }
 	YY_BREAK
 case 139:
 /* rule 139 can match eol */
 YY_RULE_SETUP
-#line 1451 "pgc.l"
+#line 1476 "pgc.l"
 { parse_include(); }
 	YY_BREAK
 case 140:
 /* rule 140 can match eol */
 YY_RULE_SETUP
-#line 1452 "pgc.l"
+#line 1477 "pgc.l"
 {
 					mmfatal(PARSE_ERROR, "syntax error in EXEC SQL INCLUDE command");
 					yyterminate();
@@ -3750,10 +3775,11 @@ case YY_STATE_EOF(incl):
 case YY_STATE_EOF(def):
 case YY_STATE_EOF(def_ident):
 case YY_STATE_EOF(undef):
-#line 1457 "pgc.l"
+#line 1482 "pgc.l"
 {
 					if (yy_buffer == NULL)
 					{
+						/* No more input */
 						if (preproc_tos > 0)
 						{
 							preproc_tos = 0;
@@ -3763,16 +3789,20 @@ case YY_STATE_EOF(undef):
 					}
 					else
 					{
+						/* Revert to previous input source */
 						struct _yy_buffer *yb = yy_buffer;
 						int i;
 						struct _defines *ptr;
 
+						/* Check to see if we are exiting a macro value */
 						for (ptr = defines; ptr; ptr = ptr->next)
+						{
 							if (ptr->used == yy_buffer)
 							{
 								ptr->used = NULL;
-								break;
+								break; /* there can't be multiple matches */
 							}
+						}
 
 						if (yyin != NULL)
 							fclose(yyin);
@@ -3800,15 +3830,15 @@ case YY_STATE_EOF(undef):
 case 141:
 /* rule 141 can match eol */
 YY_RULE_SETUP
-#line 1503 "pgc.l"
+#line 1533 "pgc.l"
 { mmfatal(PARSE_ERROR, "internal error: unreachable state; please report this to <%s>", PACKAGE_BUGREPORT); }
 	YY_BREAK
 case 142:
 YY_RULE_SETUP
-#line 1505 "pgc.l"
+#line 1535 "pgc.l"
 YY_FATAL_ERROR( "flex scanner jammed" );
 	YY_BREAK
-#line 3812 "pgc.c"
+#line 3842 "pgc.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -4824,7 +4854,7 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 1505 "pgc.l"
+#line 1535 "pgc.l"
 
 
 /* LCOV_EXCL_STOP */
@@ -5023,15 +5053,24 @@ ecpg_isspace(char ch)
 	return false;
 }
 
-static bool isdefine(void)
+/*
+ * If yytext matches a define symbol, begin scanning the symbol's value
+ * and return true
+ */
+static bool
+isdefine(void)
 {
 	struct _defines *ptr;
 
 	/* is it a define? */
 	for (ptr = defines; ptr; ptr = ptr->next)
 	{
-		if (strcmp(yytext, ptr->olddef) == 0 && ptr->used == NULL)
+		/* notice we do not match anything being actively expanded */
+		if (strcmp(yytext, ptr->name) == 0 &&
+			ptr->value != NULL &&
+			ptr->used == NULL)
 		{
+			/* Save state associated with the current buffer */
 			struct _yy_buffer *yb;
 
 			yb = mm_alloc(sizeof(struct _yy_buffer));
@@ -5040,10 +5079,17 @@ static bool isdefine(void)
 			yb->lineno = yylineno;
 			yb->filename = mm_strdup(input_filename);
 			yb->next = yy_buffer;
+			yy_buffer = yb;
 
-			ptr->used = yy_buffer = yb;
+			/* Mark symbol as being actively expanded */
+			ptr->used = yb;
 
-			yy_scan_string(ptr->newdef);
+			/*
+			 * We use yy_scan_string which will copy the value, so there's
+			 * no need to worry about a possible undef happening while we
+			 * are still scanning it.
+			 */
+			yy_scan_string(ptr->value);
 			return true;
 		}
 	}
@@ -5051,7 +5097,12 @@ static bool isdefine(void)
 	return false;
 }
 
-static bool isinformixdefine(void)
+/*
+ * Handle replacement of INFORMIX built-in defines.  This works just
+ * like isdefine() except for the source of the string to scan.
+ */
+static bool
+isinformixdefine(void)
 {
 	const char *new = NULL;
 

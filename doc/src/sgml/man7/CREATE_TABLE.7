@@ -2,12 +2,12 @@
 .\"     Title: CREATE TABLE
 .\"    Author: The PostgreSQL Global Development Group
 .\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
-.\"      Date: 2023
-.\"    Manual: PostgreSQL 15.3 Documentation
-.\"    Source: PostgreSQL 15.3
+.\"      Date: 2024
+.\"    Manual: PostgreSQL 15.7 Documentation
+.\"    Source: PostgreSQL 15.7
 .\"  Language: English
 .\"
-.TH "CREATE TABLE" "7" "2023" "PostgreSQL 15.3" "PostgreSQL 15.3 Documentation"
+.TH "CREATE TABLE" "7" "2024" "PostgreSQL 15.7" "PostgreSQL 15.7 Documentation"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -114,7 +114,7 @@ WITH ( MODULUS \fInumeric_literal\fR, REMAINDER \fInumeric_literal\fR )
 
 \fIexclude_element\fR in an EXCLUDE constraint is:
 
-{ \fIcolumn_name\fR | ( \fIexpression\fR ) } [ \fIopclass\fR ] [ ASC | DESC ] [ NULLS { FIRST | LAST } ]
+{ \fIcolumn_name\fR | ( \fIexpression\fR ) } [ COLLATE \fIcollation\fR ] [ \fIopclass\fR [ ( \fIopclass_parameter\fR = \fIvalue\fR [, \&.\&.\&. ] ) ] ] [ ASC | DESC ] [ NULLS { FIRST | LAST } ]
 
 \fIreferential_action\fR in a FOREIGN KEY/REFERENCES constraint is:
 
@@ -715,13 +715,13 @@ UNIQUE
 constraint, although an ordinary unique constraint will be faster\&. However, exclusion constraints can specify constraints that are more general than simple equality\&. For example, you can specify a constraint that no two rows in the table contain overlapping circles (see
 Section\ \&8.8) by using the
 &&
-operator\&.
+operator\&. The operator(s) are required to be commutative\&.
 .sp
 Exclusion constraints are implemented using an index, so each specified operator must be associated with an appropriate operator class (see
 Section\ \&11.10) for the index access method
-\fIindex_method\fR\&. The operators are required to be commutative\&. Each
+\fIindex_method\fR\&. Each
 \fIexclude_element\fR
-can optionally specify an operator class and/or ordering options; these are described fully under
+defines a column of the index, so it can optionally specify a collation, an operator class, operator class parameters, and/or ordering options; these are described fully under
 CREATE INDEX (\fBCREATE_INDEX\fR(7))\&.
 .sp
 The access method must support
@@ -747,7 +747,9 @@ These clauses specify a foreign key constraint, which requires that a group of o
 \fIrefcolumn\fR
 list is omitted, the primary key of the
 \fIreftable\fR
-is used\&. The referenced columns must be the columns of a non\-deferrable unique or primary key constraint in the referenced table\&. The user must have
+is used\&. Otherwise, the
+\fIrefcolumn\fR
+list must refer to the columns of a non\-deferrable unique or primary key constraint or be the columns of a non\-partial unique index\&. The user must have
 REFERENCES
 permission on the referenced table (either the whole table, or the specific referenced columns)\&. The addition of a foreign key constraint requires a
 SHARE ROW EXCLUSIVE
@@ -1673,15 +1675,19 @@ EXCLUDE
 constraint type is a
 PostgreSQL
 extension\&.
-.SS "Foreign\-Key Constraint Actions"
+.SS "Foreign Key Constraints"
 .PP
-The ability to specify column lists in the foreign\-key actions
+The ability to specify column lists in the foreign key actions
 SET DEFAULT
 and
 SET NULL
 is a
 PostgreSQL
 extension\&.
+.PP
+It is a
+PostgreSQL
+extension that a foreign key constraint may reference columns of a unique index instead of columns of a primary key or unique constraint\&.
 .SS "NULL \(lqConstraint\(rq"
 .PP
 The

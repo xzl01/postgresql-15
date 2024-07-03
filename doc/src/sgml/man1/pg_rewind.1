@@ -2,12 +2,12 @@
 .\"     Title: pg_rewind
 .\"    Author: The PostgreSQL Global Development Group
 .\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net/>
-.\"      Date: 2023
-.\"    Manual: PostgreSQL 15.3 Documentation
-.\"    Source: PostgreSQL 15.3
+.\"      Date: 2024
+.\"    Manual: PostgreSQL 15.7 Documentation
+.\"    Source: PostgreSQL 15.7
 .\"  Language: English
 .\"
-.TH "PG_REWIND" "1" "2023" "PostgreSQL 15.3" "PostgreSQL 15.3 Documentation"
+.TH "PG_REWIND" "1" "2024" "PostgreSQL 15.7" "PostgreSQL 15.7 Documentation"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -321,8 +321,11 @@ are omitted from the data copied from the source cluster\&. The files
 backup_label,
 tablespace_map,
 pg_internal\&.init,
-postmaster\&.opts, and
-postmaster\&.pid, as well as any file or directory beginning with
+postmaster\&.opts,
+postmaster\&.pid
+and
+\&.DS_Store
+as well as any file or directory beginning with
 pgsql_tmp, are omitted\&.
 .RE
 .sp

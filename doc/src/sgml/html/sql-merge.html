@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>MERGE</title><link rel="stylesheet" type="text/css" href="stylesheet.css" /><link rev="made" href="pgsql-docs@lists.postgresql.org" /><meta name="generator" content="DocBook XSL Stylesheets Vsnapshot" /><link rel="prev" href="sql-lock.html" title="LOCK" /><link rel="next" href="sql-move.html" title="MOVE" /></head><body id="docContent" class="container-fluid col-10"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="5" align="center">MERGE</th></tr><tr><td width="10%" align="left"><a accesskey="p" href="sql-lock.html" title="LOCK">Prev</a> </td><td width="10%" align="left"><a accesskey="u" href="sql-commands.html" title="SQL Commands">Up</a></td><th width="60%" align="center">SQL Commands</th><td width="10%" align="right"><a accesskey="h" href="index.html" title="PostgreSQL 15.3 Documentation">Home</a></td><td width="10%" align="right"> <a accesskey="n" href="sql-move.html" title="MOVE">Next</a></td></tr></table><hr /></div><div class="refentry" id="SQL-MERGE"><div class="titlepage"></div><a id="id-1.9.3.156.1" class="indexterm"></a><div class="refnamediv"><h2><span class="refentrytitle">MERGE</span></h2><p>MERGE — conditionally insert, update, or delete rows of a table</p></div><div class="refsynopsisdiv"><h2>Synopsis</h2><pre class="synopsis">
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>MERGE</title><link rel="stylesheet" type="text/css" href="stylesheet.css" /><link rev="made" href="pgsql-docs@lists.postgresql.org" /><meta name="generator" content="DocBook XSL Stylesheets Vsnapshot" /><link rel="prev" href="sql-lock.html" title="LOCK" /><link rel="next" href="sql-move.html" title="MOVE" /></head><body id="docContent" class="container-fluid col-10"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="5" align="center">MERGE</th></tr><tr><td width="10%" align="left"><a accesskey="p" href="sql-lock.html" title="LOCK">Prev</a> </td><td width="10%" align="left"><a accesskey="u" href="sql-commands.html" title="SQL Commands">Up</a></td><th width="60%" align="center">SQL Commands</th><td width="10%" align="right"><a accesskey="h" href="index.html" title="PostgreSQL 15.7 Documentation">Home</a></td><td width="10%" align="right"> <a accesskey="n" href="sql-move.html" title="MOVE">Next</a></td></tr></table><hr /></div><div class="refentry" id="SQL-MERGE"><div class="titlepage"></div><a id="id-1.9.3.156.1" class="indexterm"></a><div class="refnamediv"><h2><span class="refentrytitle">MERGE</span></h2><p>MERGE — conditionally insert, update, or delete rows of a table</p></div><div class="refsynopsisdiv"><h2>Synopsis</h2><pre class="synopsis">
 [ WITH <em class="replaceable"><code>with_query</code></em> [, ...] ]
 MERGE INTO [ ONLY ] <em class="replaceable"><code>target_table_name</code></em> [ * ] [ [ AS ] <em class="replaceable"><code>target_alias</code></em> ]
 USING <em class="replaceable"><code>data_source</code></em> ON <em class="replaceable"><code>join_condition</code></em>
@@ -23,14 +23,16 @@ INSERT [( <em class="replaceable"><code>column_name</code></em> [, ...] )]
 <span class="phrase">and <em class="replaceable"><code>merge_update</code></em> is:</span>
 
 UPDATE SET { <em class="replaceable"><code>column_name</code></em> = { <em class="replaceable"><code>expression</code></em> | DEFAULT } |
-             ( <em class="replaceable"><code>column_name</code></em> [, ...] ) = ( { <em class="replaceable"><code>expression</code></em> | DEFAULT } [, ...] ) } [, ...]
+             ( <em class="replaceable"><code>column_name</code></em> [, ...] ) = [ ROW ] ( { <em class="replaceable"><code>expression</code></em> | DEFAULT } [, ...] ) |
+             ( <em class="replaceable"><code>column_name</code></em> [, ...] ) = ( <em class="replaceable"><code>sub-SELECT</code></em> )
+           } [, ...]
 
 <span class="phrase">and <em class="replaceable"><code>merge_delete</code></em> is:</span>
 
 DELETE
 </pre></div><div class="refsect1" id="id-1.9.3.156.5"><h2>Description</h2><p>
    <code class="command">MERGE</code> performs actions that modify rows in the
-   <em class="replaceable"><code>target_table_name</code></em>,
+   target table identified as <em class="replaceable"><code>target_table_name</code></em>,
    using the <em class="replaceable"><code>data_source</code></em>.
    <code class="command">MERGE</code> provides a single <acronym class="acronym">SQL</acronym>
    statement that can conditionally <code class="command">INSERT</code>,
@@ -39,7 +41,7 @@ DELETE
   </p><p>
    First, the <code class="command">MERGE</code> command performs a join
    from <em class="replaceable"><code>data_source</code></em> to
-   <em class="replaceable"><code>target_table_name</code></em>
+   the target table
    producing zero or more candidate change rows.  For each candidate change
    row, the status of <code class="literal">MATCHED</code> or <code class="literal">NOT MATCHED</code>
    is set just once, after which <code class="literal">WHEN</code> clauses are evaluated
@@ -52,7 +54,7 @@ DELETE
    <code class="command">DELETE</code> commands of the same names. The syntax of
    those commands is different, notably that there is no <code class="literal">WHERE</code>
    clause and no table name is specified.  All actions refer to the
-   <em class="replaceable"><code>target_table_name</code></em>,
+   target table,
    though modifications to other tables may be made using triggers.
   </p><p>
    When <code class="literal">DO NOTHING</code> is specified, the source row is
@@ -63,24 +65,34 @@ DELETE
    There is no separate <code class="literal">MERGE</code> privilege.
    If you specify an update action, you must have the
    <code class="literal">UPDATE</code> privilege on the column(s)
-   of the <em class="replaceable"><code>target_table_name</code></em>
+   of the target table
    that are referred to in the <code class="literal">SET</code> clause.
    If you specify an insert action, you must have the <code class="literal">INSERT</code>
-   privilege on the <em class="replaceable"><code>target_table_name</code></em>.
-   If you specify an delete action, you must have the <code class="literal">DELETE</code>
-   privilege on the <em class="replaceable"><code>target_table_name</code></em>.
+   privilege on the target table.
+   If you specify a delete action, you must have the <code class="literal">DELETE</code>
+   privilege on the target table.
+   If you specify a <code class="literal">DO NOTHING</code> action, you must have
+   the <code class="literal">SELECT</code> privilege on at least one column
+   of the target table.
+   You will also need <code class="literal">SELECT</code> privilege on any column(s)
+   of the <em class="replaceable"><code>data_source</code></em> and
+   of the target table referred to
+   in any <code class="literal">condition</code> (including <code class="literal">join_condition</code>)
+   or <code class="literal">expression</code>.
    Privileges are tested once at statement start and are checked
    whether or not particular <code class="literal">WHEN</code> clauses are executed.
-   You will require the <code class="literal">SELECT</code> privilege on the
-   <em class="replaceable"><code>data_source</code></em> and any column(s)
-   of the <em class="replaceable"><code>target_table_name</code></em>
-   referred to in a <code class="literal">condition</code>.
   </p><p>
    <code class="command">MERGE</code> is not supported if the
-   <em class="replaceable"><code>target_table_name</code></em> is a
+   target table is a
    materialized view, foreign table, or if it has any
    rules defined on it.
-  </p></div><div class="refsect1" id="id-1.9.3.156.6"><h2>Parameters</h2><div class="variablelist"><dl class="variablelist"><dt><span class="term"><em class="replaceable"><code>target_table_name</code></em></span></dt><dd><p>
+  </p></div><div class="refsect1" id="id-1.9.3.156.6"><h2>Parameters</h2><div class="variablelist"><dl class="variablelist"><dt><span class="term"><em class="replaceable"><code>with_query</code></em></span></dt><dd><p>
+      The <code class="literal">WITH</code> clause allows you to specify one or more
+      subqueries that can be referenced by name in the <code class="command">MERGE</code>
+      query. See <a class="xref" href="queries-with.html" title="7.8. WITH Queries (Common Table Expressions)">Section 7.8</a> and <a class="xref" href="sql-select.html" title="SELECT"><span class="refentrytitle">SELECT</span></a>
+      for details.  Note that <code class="literal">WITH RECURSIVE</code> is not supported
+      by <code class="command">MERGE</code>.
+     </p></dd><dt><span class="term"><em class="replaceable"><code>target_table_name</code></em></span></dt><dd><p>
       The name (optionally schema-qualified) of the target table to merge into.
       If <code class="literal">ONLY</code> is specified before the table name, matching
       rows are updated or deleted in the named table only.  If
@@ -107,7 +119,7 @@ DELETE
      </p></dd><dt><span class="term"><em class="replaceable"><code>source_query</code></em></span></dt><dd><p>
       A query (<code class="command">SELECT</code> statement or <code class="command">VALUES</code>
       statement) that supplies the rows to be merged into the
-      <em class="replaceable"><code>target_table_name</code></em>.
+      target table.
       Refer to the <a class="xref" href="sql-select.html" title="SELECT"><span class="refentrytitle">SELECT</span></a>
       statement or <a class="xref" href="sql-values.html" title="VALUES"><span class="refentrytitle">VALUES</span></a>
       statement for a description of the syntax.
@@ -121,21 +133,20 @@ DELETE
       <code class="type">boolean</code> (similar to a <code class="literal">WHERE</code>
       clause) that specifies which rows in the
       <em class="replaceable"><code>data_source</code></em>
-      match rows in the
-      <em class="replaceable"><code>target_table_name</code></em>.
+      match rows in the target table.
      </p><div class="warning"><h3 class="title">Warning</h3><p>
-       Only columns from <em class="replaceable"><code>target_table_name</code></em>
+       Only columns from the target table
        that attempt to match <em class="replaceable"><code>data_source</code></em>
        rows should appear in <em class="replaceable"><code>join_condition</code></em>.
        <em class="replaceable"><code>join_condition</code></em> subexpressions that
-       only reference <em class="replaceable"><code>target_table_name</code></em>
+       only reference the target table's
        columns can affect which action is taken, often in surprising ways.
       </p></div></dd><dt><span class="term"><em class="replaceable"><code>when_clause</code></em></span></dt><dd><p>
       At least one <code class="literal">WHEN</code> clause is required.
      </p><p>
       If the <code class="literal">WHEN</code> clause specifies <code class="literal">WHEN MATCHED</code>
       and the candidate change row matches a row in the
-      <em class="replaceable"><code>target_table_name</code></em>,
+      target table,
       the <code class="literal">WHEN</code> clause is executed if the
       <em class="replaceable"><code>condition</code></em> is
       absent or it evaluates to <code class="literal">true</code>.
@@ -143,7 +154,7 @@ DELETE
       Conversely, if the <code class="literal">WHEN</code> clause specifies
       <code class="literal">WHEN NOT MATCHED</code>
       and the candidate change row does not match a row in the
-      <em class="replaceable"><code>target_table_name</code></em>,
+      target table,
       the <code class="literal">WHEN</code> clause is executed if the
       <em class="replaceable"><code>condition</code></em> is
       absent or it evaluates to <code class="literal">true</code>.
@@ -169,10 +180,10 @@ DELETE
       filled with a default value, either its declared default value
       or null if there is none.
      </p><p>
-      If <em class="replaceable"><code>target_table_name</code></em>
+      If the target table
       is a partitioned table, each row is routed to the appropriate partition
       and inserted into it.
-      If <em class="replaceable"><code>target_table_name</code></em>
+      If the target table
       is a partition, an error will occur if any input row violates the
       partition constraint.
      </p><p>
@@ -184,17 +195,17 @@ DELETE
       the source relation, since by definition there is no matching target row.
      </p></dd><dt><span class="term"><em class="replaceable"><code>merge_update</code></em></span></dt><dd><p>
       The specification of an <code class="literal">UPDATE</code> action that updates
-      the current row of the <em class="replaceable"><code>target_table_name</code></em>.
+      the current row of the target table.
       Column names may not be specified more than once.
      </p><p>
       Neither a table name nor a <code class="literal">WHERE</code> clause are allowed.
      </p></dd><dt><span class="term"><em class="replaceable"><code>merge_delete</code></em></span></dt><dd><p>
       Specifies a <code class="literal">DELETE</code> action that deletes the current row
-      of the <em class="replaceable"><code>target_table_name</code></em>.
+      of the target table.
       Do not include the table name or any other clauses, as you would normally
       do with a <a class="xref" href="sql-delete.html" title="DELETE"><span class="refentrytitle">DELETE</span></a> command.
      </p></dd><dt><span class="term"><em class="replaceable"><code>column_name</code></em></span></dt><dd><p>
-      The name of a column in the <em class="replaceable"><code>target_table_name</code></em>.  The column name
+      The name of a column in the target table.  The column name
       can be qualified with a subfield name or array subscript, if
       needed.  (Inserting into only some fields of a composite
       column leaves the other fields null.)
@@ -217,17 +228,22 @@ DELETE
       An expression to assign to the column.  If used in a
       <code class="literal">WHEN MATCHED</code> clause, the expression can use values
       from the original row in the target table, and values from the
-      <code class="literal">data_source</code> row.
+      <em class="replaceable"><code>data_source</code></em> row.
       If used in a <code class="literal">WHEN NOT MATCHED</code> clause, the
-      expression can use values from the <code class="literal">data_source</code>.
+      expression can use values from the
+      <em class="replaceable"><code>data_source</code></em> row.
      </p></dd><dt><span class="term"><code class="literal">DEFAULT</code></span></dt><dd><p>
       Set the column to its default value (which will be <code class="literal">NULL</code>
       if no specific default expression has been assigned to it).
-     </p></dd><dt><span class="term"><em class="replaceable"><code>with_query</code></em></span></dt><dd><p>
-      The <code class="literal">WITH</code> clause allows you to specify one or more
-      subqueries that can be referenced by name in the <code class="command">MERGE</code>
-      query. See <a class="xref" href="queries-with.html" title="7.8. WITH Queries (Common Table Expressions)">Section 7.8</a> and <a class="xref" href="sql-select.html" title="SELECT"><span class="refentrytitle">SELECT</span></a>
-      for details.
+     </p></dd><dt><span class="term"><em class="replaceable"><code>sub-SELECT</code></em></span></dt><dd><p>
+      A <code class="literal">SELECT</code> sub-query that produces as many output columns
+      as are listed in the parenthesized column list preceding it.  The
+      sub-query must yield no more than one row when executed.  If it
+      yields one row, its column values are assigned to the target columns;
+      if it yields no rows, NULL values are assigned to the target columns.
+      The sub-query can refer to values from the original row in the target table,
+      and values from the <em class="replaceable"><code>data_source</code></em>
+      row.
      </p></dd></dl></div></div><div class="refsect1" id="id-1.9.3.156.7"><h2>Outputs</h2><p>
    On successful completion, a <code class="command">MERGE</code> command returns a command
    tag of the form
@@ -375,6 +391,6 @@ WHEN MATCHED THEN
   </p></div><div class="refsect1" id="id-1.9.3.156.10"><h2>Compatibility</h2><p>
     This command conforms to the <acronym class="acronym">SQL</acronym> standard.
   </p><p>
-    The WITH clause and <code class="literal">DO NOTHING</code> action are extensions to
-    the <acronym class="acronym">SQL</acronym> standard.
-  </p></div></div><div class="navfooter"><hr /><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="sql-lock.html" title="LOCK">Prev</a> </td><td width="20%" align="center"><a accesskey="u" href="sql-commands.html" title="SQL Commands">Up</a></td><td width="40%" align="right"> <a accesskey="n" href="sql-move.html" title="MOVE">Next</a></td></tr><tr><td width="40%" align="left" valign="top">LOCK </td><td width="20%" align="center"><a accesskey="h" href="index.html" title="PostgreSQL 15.3 Documentation">Home</a></td><td width="40%" align="right" valign="top"> MOVE</td></tr></table></div></body></html>
+    The <code class="literal">WITH</code> clause and <code class="literal">DO NOTHING</code>
+    action are extensions to the <acronym class="acronym">SQL</acronym> standard.
+  </p></div></div><div class="navfooter"><hr /><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="sql-lock.html" title="LOCK">Prev</a> </td><td width="20%" align="center"><a accesskey="u" href="sql-commands.html" title="SQL Commands">Up</a></td><td width="40%" align="right"> <a accesskey="n" href="sql-move.html" title="MOVE">Next</a></td></tr><tr><td width="40%" align="left" valign="top">LOCK </td><td width="20%" align="center"><a accesskey="h" href="index.html" title="PostgreSQL 15.7 Documentation">Home</a></td><td width="40%" align="right" valign="top"> MOVE</td></tr></table></div></body></html>

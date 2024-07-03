@@ -329,7 +329,7 @@ msgstr "Ingrésela nuevamente: "
 #: command.c:2109
 #, c-format
 msgid "Passwords didn't match."
-msgstr "Las constraseñas no coinciden."
+msgstr "Las contraseñas no coinciden."
 
 #: command.c:2208
 #, c-format
@@ -1250,7 +1250,7 @@ msgstr "vista"
 
 #: describe.c:1033 describe.c:3884
 msgid "materialized view"
-msgstr "vistas materializadas"
+msgstr "vista materializada"
 
 #: describe.c:1034 describe.c:1186 describe.c:3886
 msgid "sequence"
@@ -6403,10 +6403,3 @@ msgid ""
 msgstr ""
 "valor «%s» no reconocido para «%s»\n"
 "Los valores disponibles son: %s."
-
-#, c-format
-#~ msgid "\\watch cannot be used with COPY"
-#~ msgstr "no se puede usar \\watch con COPY"
-
-#~ msgid "text"
-#~ msgstr "texto"

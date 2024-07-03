@@ -2396,12 +2396,10 @@ mmerror(PARSE_ERROR, ET_WARNING, "unsupported feature will be passed to server")
 }
 |  CREATE SCHEMA IF_P NOT EXISTS OptSchemaName AUTHORIZATION RoleSpec OptSchemaEltList
  { 
-mmerror(PARSE_ERROR, ET_WARNING, "unsupported feature will be passed to server");
  $$ = cat_str(5,mm_strdup("create schema if not exists"),$6,mm_strdup("authorization"),$8,$9);
 }
 |  CREATE SCHEMA IF_P NOT EXISTS ColId OptSchemaEltList
  { 
-mmerror(PARSE_ERROR, ET_WARNING, "unsupported feature will be passed to server");
  $$ = cat_str(3,mm_strdup("create schema if not exists"),$6,$7);
 }
 ;
@@ -4249,7 +4247,6 @@ mmerror(PARSE_ERROR, ET_WARNING, "unsupported feature will be passed to server")
  key_update:
  ON UPDATE key_action
  { 
-mmerror(PARSE_ERROR, ET_WARNING, "unsupported feature will be passed to server");
  $$ = cat_str(2,mm_strdup("on update"),$3);
 }
 ;
@@ -5373,7 +5370,6 @@ mmerror(PARSE_ERROR, ET_WARNING, "unsupported feature will be passed to server")
 }
 |  CREATE opt_or_replace CONSTRAINT TRIGGER name AFTER TriggerEvents ON qualified_name OptConstrFromTable ConstraintAttributeSpec FOR EACH ROW TriggerWhen EXECUTE FUNCTION_or_PROCEDURE func_name '(' TriggerFuncArgs ')'
  { 
-mmerror(PARSE_ERROR, ET_WARNING, "unsupported feature will be passed to server");
  $$ = cat_str(18,mm_strdup("create"),$2,mm_strdup("constraint trigger"),$5,mm_strdup("after"),$7,mm_strdup("on"),$9,$10,$11,mm_strdup("for each row"),$15,mm_strdup("execute"),$17,$18,mm_strdup("("),$20,mm_strdup(")"));
 }
 ;
@@ -7579,7 +7575,6 @@ mmerror(PARSE_ERROR, ET_WARNING, "unsupported feature will be passed to server")
  aggr_arg:
  func_arg
  { 
-mmerror(PARSE_ERROR, ET_WARNING, "unsupported feature will be passed to server");
  $$ = $1;
 }
 ;
@@ -9180,12 +9175,10 @@ mmerror(PARSE_ERROR, ET_WARNING, "unsupported feature will be passed to server")
 }
 |  CREATE OptTemp RECURSIVE VIEW qualified_name '(' columnList ')' opt_reloptions AS SelectStmt opt_check_option
  { 
-mmerror(PARSE_ERROR, ET_WARNING, "unsupported feature will be passed to server");
  $$ = cat_str(11,mm_strdup("create"),$2,mm_strdup("recursive view"),$5,mm_strdup("("),$7,mm_strdup(")"),$9,mm_strdup("as"),$11,$12);
 }
 |  CREATE OR REPLACE OptTemp RECURSIVE VIEW qualified_name '(' columnList ')' opt_reloptions AS SelectStmt opt_check_option
  { 
-mmerror(PARSE_ERROR, ET_WARNING, "unsupported feature will be passed to server");
  $$ = cat_str(11,mm_strdup("create or replace"),$4,mm_strdup("recursive view"),$7,mm_strdup("("),$9,mm_strdup(")"),$11,mm_strdup("as"),$13,$14);
 }
 ;

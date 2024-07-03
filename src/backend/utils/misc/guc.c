@@ -1285,7 +1285,7 @@ static struct config_bool ConfigureNamesBool[] =
 		{"fsync", PGC_SIGHUP, WAL_SETTINGS,
 			gettext_noop("Forces synchronization of updates to disk."),
 			gettext_noop("The server will use the fsync() system call in several places to make "
-						 "sure that updates are physically written to disk. This insures "
+						 "sure that updates are physically written to disk. This ensures "
 						 "that a database cluster will recover to a consistent state after "
 						 "an operating system or hardware crash.")
 		},
@@ -4948,7 +4948,7 @@ static struct config_enum ConfigureNamesEnum[] =
 		},
 		&pgstat_fetch_consistency,
 		PGSTAT_FETCH_CONSISTENCY_CACHE, stats_fetch_consistency,
-		NULL, NULL, NULL
+		NULL, assign_stats_fetch_consistency, NULL
 	},
 
 	{
@@ -7643,9 +7643,12 @@ set_config_option_ext(const char *name, const char *value,
 	 * Other changes might need to affect other workers, so forbid them.
 	 */
 	if (IsInParallelMode() && changeVal && action != GUC_ACTION_SAVE)
+	{
 		ereport(elevel,
 				(errcode(ERRCODE_INVALID_TRANSACTION_STATE),
 				 errmsg("cannot set parameters during a parallel operation")));
+		return -1;
+	}
 
 	record = find_option(name, true, false, elevel);
 	if (record == NULL)
@@ -7740,6 +7743,10 @@ set_config_option_ext(const char *name, const char *value,
 				 * backends.  This is a tad klugy, but necessary because we
 				 * don't re-read the config file during backend start.
 				 *
+				 * However, if changeVal is false then plow ahead anyway since
+				 * we are trying to find out if the value is potentially good,
+				 * not actually use it.
+				 *
 				 * In EXEC_BACKEND builds, this works differently: we load all
 				 * non-default settings from the CONFIG_EXEC_PARAMS file
 				 * during backend start.  In that case we must accept
@@ -7750,7 +7757,7 @@ set_config_option_ext(const char *name, const char *value,
 				 * started it. is_reload will be true when either situation
 				 * applies.
 				 */
-				if (IsUnderPostmaster && !is_reload)
+				if (IsUnderPostmaster && changeVal && !is_reload)
 					return -1;
 			}
 			else if (context != PGC_POSTMASTER &&
@@ -9723,6 +9730,7 @@ MarkGUCPrefixReserved(const char *className)
 			num_guc_variables--;
 			memmove(&guc_variables[i], &guc_variables[i + 1],
 					(num_guc_variables - i) * sizeof(struct config_generic *));
+			i--;
 		}
 	}
 
@@ -9949,7 +9957,14 @@ get_explain_guc_options(int *num)
 				{
 					struct config_string *lconf = (struct config_string *) conf;
 
-					modified = (strcmp(lconf->boot_val, *(lconf->variable)) != 0);
+					if (lconf->boot_val == NULL &&
+						*lconf->variable == NULL)
+						modified = false;
+					else if (lconf->boot_val == NULL ||
+							 *lconf->variable == NULL)
+						modified = true;
+					else
+						modified = (strcmp(lconf->boot_val, *(lconf->variable)) != 0);
 				}
 				break;
 
@@ -10693,7 +10708,8 @@ write_one_nondefault_variable(FILE *fp, struct config_generic *gconf)
 			{
 				struct config_string *conf = (struct config_string *) gconf;
 
-				fprintf(fp, "%s", *conf->variable);
+				if (*conf->variable)
+					fprintf(fp, "%s", *conf->variable);
 			}
 			break;
 
